@@ -73,7 +73,7 @@ if (process.env.LLM_API_KEY) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.LLM_MODEL ?? "gemini-2.5-flash",
+        model: process.env.LLM_MODEL ?? "gemini-3.1-flash-lite",
         messages: [{ role: "user", content: "Reply OK." }],
         max_tokens: 1,
       }),
