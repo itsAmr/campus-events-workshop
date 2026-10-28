@@ -1,84 +1,96 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, normalizeEvent, request } from "./api";
+import { ApiError, eventsUrl, request } from "./api";
+import { toTranscript } from "./Chat";
+
+const json = (body: unknown, status = 200) =>
+  vi.fn().mockResolvedValue(
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
 
 describe("request", () => {
-  it("unwraps API data envelopes", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: { id: "event-1" } }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-
+  it("unwraps the REST data envelope", async () => {
     await expect(
-      request<{ id: string }>("/api/v1/events/event-1", {}, fetcher),
-    ).resolves.toEqual({ id: "event-1" });
+      request("/api/v1/events/1", {}, json({ data: { id: 1 } })),
+    ).resolves.toEqual({ id: 1 });
   });
 
-  it("preserves server field errors", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          message: "Please correct the highlighted fields",
-          errors: { title: ["A title is required"], capacity: "Must be positive" },
-        }),
-        {
-          status: 422,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
+  it("returns unenveloped bodies such as chat results", async () => {
+    await expect(
+      request("/chat", { method: "POST" }, json({ messages: [] })),
+    ).resolves.toEqual({ messages: [] });
+  });
 
-    const error: unknown = await request(
-      "/api/v1/events",
-      { method: "POST" },
-      fetcher,
-    ).catch((reason: unknown) => reason);
+  it("exposes validation field errors", async () => {
+    const fetcher = json(
+      {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Request validation failed",
+          details: { fields: { title: ["Required"] } },
+        },
+      },
+      400,
+    );
+    const error = await request("/api/v1/events", { method: "POST" }, fetcher).catch(
+      (reason: unknown) => reason,
+    );
 
     expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).fieldErrors).toEqual({
-      title: "A title is required",
-      capacity: "Must be positive",
-    });
+    expect((error as ApiError).fields).toEqual({ title: ["Required"] });
   });
 
-  it("formats 501 responses as actionable implementation errors", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ sourcePath: "src/routes/events.ts" }), {
-        status: 501,
-        headers: { "Content-Type": "application/json" },
-      }),
+  it("explains 501 starter routes", async () => {
+    const fetcher = json(
+      {
+        error: {
+          code: "NOT_IMPLEMENTED",
+          message: "Implement event listing in Part 1",
+          details: { sourcePath: "api/src/app.ts" },
+        },
+      },
+      501,
     );
 
-    await expect(
-      request("/api/v1/events/42/rsvp", { method: "DELETE" }, fetcher),
-    ).rejects.toThrow(
-      "Not implemented yet: DELETE /api/v1/events/42/rsvp (src/routes/events.ts)",
+    await expect(request("/api/v1/events", {}, fetcher)).rejects.toThrow(
+      "Not implemented yet: GET /api/v1/events — Implement event listing in Part 1 (api/src/app.ts)",
     );
   });
 });
 
-describe("normalizeEvent", () => {
-  it("accepts snake_case API fields", () => {
+describe("eventsUrl", () => {
+  it("sends only non-empty filters", () => {
+    expect(eventsUrl({ q: " robotics ", category: "", email: undefined })).toBe(
+      "/api/v1/events?q=robotics",
+    );
+  });
+});
+
+describe("toTranscript", () => {
+  it("pairs tool calls with their results", () => {
     expect(
-      normalizeEvent({
-        event_id: 7,
-        name: "Robotics Night",
-        type: "Academic",
-        venue: "Engineering Hall",
-        starts_at: "2026-10-28T22:00:00Z",
-        max_attendees: 40,
-        attendee_count: 18,
-        is_attending: true,
-      }),
-    ).toMatchObject({
-      id: "7",
-      title: "Robotics Night",
-      category: "Academic",
-      location: "Engineering Hall",
-      capacity: 40,
-      attendeeCount: 18,
-      isAttending: true,
-    });
+      toTranscript([
+        { role: "user", content: "Tech events?" },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            {
+              id: "call-1",
+              type: "function",
+              function: { name: "search_events", arguments: "{}" },
+            },
+          ],
+        },
+        { role: "tool", tool_call_id: "call-1", content: "[]" },
+        { role: "assistant", content: "Nothing this week." },
+      ]),
+    ).toEqual([
+      { kind: "user", text: "Tech events?" },
+      { kind: "tool", name: "search_events", args: "{}", result: "[]" },
+      { kind: "assistant", text: "Nothing this week." },
+    ]);
   });
 });
