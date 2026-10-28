@@ -54,7 +54,7 @@ describe("request", () => {
       501,
     );
 
-    await expect(request("/api/v1/events", {}, fetcher)).rejects.toThrow(
+    await expect(request("/api/v1/events?q=ai", {}, fetcher)).rejects.toThrow(
       "Not implemented yet: GET /api/v1/events — Implement event listing in Part 1 (api/src/app.ts)",
     );
   });
