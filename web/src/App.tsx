@@ -127,7 +127,7 @@ export default function App() {
               <input
                 value={identity.name}
                 onChange={(e) => setIdentity({ ...identity, name: e.target.value })}
-                placeholder="Alex Rivera"
+                placeholder="John Cena"
                 autoComplete="name"
               />
             </label>
@@ -137,7 +137,7 @@ export default function App() {
                 type="email"
                 value={identity.email}
                 onChange={(e) => setIdentity({ ...identity, email: e.target.value })}
-                placeholder="alex@mcgill.ca"
+                placeholder="john.cena@example.com"
                 autoComplete="email"
               />
               <small>{email ? "Used for RSVPs and by the assistant." : "Enter an email to RSVP."}</small>
