@@ -114,10 +114,18 @@ export function createProvider(
     }
 
     if (!response.ok) {
+      // Gemini wraps errors in an array; OpenAI-style providers use an object.
+      const detail = (
+        (Array.isArray(body) ? body[0] : body) as
+          | { error?: { message?: unknown } }
+          | null
+      )?.error?.message;
       throw new HttpError(
         502,
         "provider_error",
-        `The LLM provider returned HTTP ${response.status}.`,
+        `The LLM provider returned HTTP ${response.status}${
+          typeof detail === "string" ? `: ${detail}` : "."
+        }`,
       );
     }
 
