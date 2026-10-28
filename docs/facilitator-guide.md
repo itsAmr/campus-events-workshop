@@ -1,5 +1,7 @@
 # Facilitator Guide
 
+A joint event between Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS). The seed data mixes McGill and Concordia events so both groups see their own campus.
+
 ## Outcomes
 
 Students should leave able to explain and demonstrate:
@@ -33,7 +35,7 @@ model <──> chat host <──MCP──> MCP server ──REST──> Express 
 - Complete [setup-checklist.md](setup-checklist.md) on macOS, Windows, and the intended Codespaces configuration where available.
 - Verify Node 24, root npm scripts, expected paths, ports, `.env.example`, and all checkpoint branch names.
 - Run every worksheet command from a clean clone.
-- Seed enough events for “this week,” including at least two `tech` events in the workshop's current week.
+- Seed dates are relative to when the database was first created, and the two Technology demo events land 1 and 2 days later. Have everyone run `npm run db:reset` at the start of the workshop so “this week” has results. “This week” ends on Sunday, so on a Saturday or Sunday ask about “the next 7 days” instead.
 - Confirm all dates and timezone behavior visible in the demo.
 - Open the completed app, API terminal, MCP Inspector, and presentation diagram before the room fills.
 - Have printed or short links for the repository, AI Studio, and MCP Inspector instructions.
