@@ -54,60 +54,74 @@ export function createApp(options: CreateAppOptions = {}) {
     response.json({ data: service.categories() });
   });
 
-  v1.get("/events", (request, response) => {
-    const filters = parse(eventFiltersSchema, request.query);
-    response.json({
-      data: service.list(filters).map((event) => ({
-        ...toV1Event(event),
-        isAttending: filters.email
-          ? service.hasRsvp(event.id, filters.email)
-          : false,
-      })),
+  v1.get("/events", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Implement event listing in Part 1",
+        details: { sourcePath: "api/src/app.ts" },
+      },
     });
   });
 
-  v1.get("/events/:id", (request, response) => {
-    response.json({ data: toV1Event(service.get(parseId(request.params.id))) });
-  });
-
-  v1.post("/events", (request, response) => {
-    const event = service.create(parse(createEventSchema, request.body));
-    response
-      .status(201)
-      .location(`/api/v1/events/${event.id}`)
-      .json({ data: toV1Event(event) });
-  });
-
-  v1.patch("/events/:id", (request, response) => {
-    const event = service.update(
-      parseId(request.params.id),
-      parse(updateEventSchema, request.body),
-    );
-    response.json({ data: toV1Event(event) });
-  });
-
-  v1.delete("/events/:id", (request, response) => {
-    service.delete(parseId(request.params.id));
-    response.status(204).end();
-  });
-
-  v1.post("/events/:id/rsvps", (request, response) => {
-    const eventId = parseId(request.params.id);
-    const { email } = parse(rsvpSchema, request.body);
-    const rsvp = service.rsvp(eventId, email);
-    response
-      .status(201)
-      .location(`/api/v1/events/${eventId}/rsvps/${encodeURIComponent(email)}`)
-      .json({ data: toRsvp(rsvp) });
-  });
-
-  v1.delete("/events/:id/rsvps/:email", (request, response) => {
-    const eventId = parseId(request.params.id);
-    const { email } = parse(rsvpSchema, {
-      email: decodeURIComponent(request.params.email),
+  v1.get("/events/:id", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Implement event detail in Part 1",
+        details: { sourcePath: "api/src/app.ts" },
+      },
     });
-    service.cancelRsvp(eventId, email);
-    response.status(204).end();
+  });
+
+  v1.post("/events", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Implement event creation in Part 1",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
+  });
+
+  v1.patch("/events/:id", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Stretch: implement event updates",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
+  });
+
+  v1.delete("/events/:id", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Stretch: implement event deletion",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
+  });
+
+  v1.post("/events/:id/rsvps", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Implement RSVP creation in Part 1",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
+  });
+
+  v1.delete("/events/:id/rsvps/:email", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Stretch: implement RSVP cancellation",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
   });
 
   app.use("/api/v1", v1);
