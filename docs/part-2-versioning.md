@@ -111,7 +111,7 @@ Expected paths:
 - `web/src/api.ts`
 - `api/tests/app.test.ts`
 
-The web app may remain on v1 during this exercise. Inspect its normalization boundary and explain what would need to change before switching its single `API_BASE` constant to v2. Add API tests that compare both representations of the same event.
+The web app stays on v1 during this exercise. Its `CampusEvent` type in `web/src/api.ts` is the v1 contract: try switching `API_BASE` to `/api/v2` and watch the page break on the new `location` object, then switch it back. That is exactly the client you would break by changing v1 in place. Add API tests that compare both representations of the same event.
 
 Acceptance checks:
 
