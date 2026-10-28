@@ -71,7 +71,7 @@ export async function request<T>(
   const details = error.details ?? {};
   let message: string = error.message ?? `Request failed (${response.status})`;
   if (response.status === 501) {
-    message = `Not implemented yet: ${method} ${path} — ${message}`;
+    message = `Not implemented yet: ${method} ${path.split("?")[0]} — ${message}`;
     if (details.sourcePath) message += ` (${details.sourcePath})`;
   }
   if (Array.isArray(details.missing)) {
