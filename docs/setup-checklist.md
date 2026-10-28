@@ -24,7 +24,7 @@ Free-tier limits and provider terms may change. The workshop cannot guarantee fr
 ## 3. Get the repository
 
 ```bash
-git clone <workshop-repository-url>
+git clone https://github.com/itsAmr/campus-events-workshop.git
 cd campus-events-workshop
 git branch --all
 npm install

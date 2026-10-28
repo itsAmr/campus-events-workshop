@@ -51,7 +51,7 @@ Privacy and cost warning:
 ## Setup
 
 ```bash
-git clone <workshop-repository-url>
+git clone https://github.com/itsAmr/campus-events-workshop.git
 cd campus-events-workshop
 npm install
 ```
