@@ -37,6 +37,7 @@ model <──> chat host <──MCP──> MCP server ──REST──> Express 
 - Run every worksheet command from a clean clone.
 - Seed dates are relative to when the database was first created, and the two Technology demo events land 1 and 2 days later. Have everyone run `npm run db:reset` at the start of the workshop so “this week” has results. “This week” ends on Sunday, so on a Saturday or Sunday ask about “the next 7 days” instead.
 - Confirm all dates and timezone behavior visible in the demo.
+- The default model is `gemini-3.1-flash-lite` because its free tier is the most generous Gemini option for function calling, reportedly about 15 requests per minute and 500 per day per Google project. A chat message uses 2–4 requests. Check the current numbers on the AI Studio rate-limit page before the workshop.
 - Open the completed app, API terminal, MCP Inspector, and presentation diagram before the room fills.
 - Have printed or short links for the repository, AI Studio, and MCP Inspector instructions.
 - Do not require Docker.
@@ -94,6 +95,8 @@ Use a visible architecture diagram and narrate this exact flow:
 9. The MCP server returns structured tool content to the host.
 10. The host gives the tool result to the model as untrusted data.
 11. The model summarizes only those events, and the UI shows the answer and its tool provenance.
+
+In passing: the tool description is the model's only documentation. An earlier, vaguer `search_events` description made Gemini search for the whole phrase “mcgill robotics open house event” and report that the event didn't exist. The current description tells it to use one or two keywords and prefer categories.
 
 Then demonstrate a write:
 
@@ -189,6 +192,8 @@ After the workshop:
 - **Inspector cannot connect:** check the workspace script and ensure protocol messages are not mixed with stdout logs.
 - **Chat works but has no tools:** verify the chat host launched/connected to MCP and received the tool list.
 - **Wrong weekly results:** inspect timezone boundaries and seeded dates; do not hide a date bug with prompt wording.
+- **Gemini returns HTTP 503 “high demand”:** this is Google's capacity, not the code. It usually clears within a minute; ask again.
+- **Gemini returns HTTP 429:** the chat shows Google's message. A per-minute limit clears within a minute. A daily limit resets at midnight Pacific time (3 AM in Montreal), so switch that student to the facilitator backup key.
 - **Writes happen without confirmation:** stop the demo. This is a release-blocking defect, not an optional enhancement.
 - **Provider outage or quota:** continue with `curl` and Inspector, then show the prepared recorded/live completed flow.
 
