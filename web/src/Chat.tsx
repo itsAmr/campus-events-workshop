@@ -70,6 +70,10 @@ export function Chat({ identity }: { identity: Identity }) {
       setMessages(result.messages);
       setTools(result.tools.map((tool) => tool.name));
       setApproval(result.pendingApproval);
+      const last = result.messages.at(-1);
+      if (last?.role === "assistant" && !last.content?.trim() && !last.tool_calls?.length) {
+        setError("The model returned an empty reply. Try asking again.");
+      }
       return true;
     } catch (reason) {
       setError(errorMessage(reason));
