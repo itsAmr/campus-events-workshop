@@ -44,7 +44,13 @@ export const ListCategoriesOutputSchema = z.object({
 });
 
 export const SearchEventsInputSchema = z.object({
-  query: z.string().min(1).optional().describe("Free-text search"),
+  query: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'One or two distinctive keywords, matched as an exact phrase against titles and descriptions (for example "robotics")',
+    ),
   category: z.string().min(1).optional().describe("Category name or identifier"),
   when: z
     .enum(["today", "this_week", "this_weekend", "next_7_days", "any"])
