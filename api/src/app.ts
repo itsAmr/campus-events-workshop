@@ -114,12 +114,23 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use("/v1", v1);
 
   const v2 = express.Router();
-  v2.get("/events", (request, response) => {
-    const filters = parse(eventFiltersSchema, request.query);
-    response.json({ data: service.list(filters).map(toV2Event) });
+  v2.get("/events", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Implement the v2 event collection in Part 2",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
   });
-  v2.get("/events/:id", (request, response) => {
-    response.json({ data: toV2Event(service.get(parseId(request.params.id))) });
+  v2.get("/events/:id", (_request, response) => {
+    response.status(501).json({
+      error: {
+        code: "NOT_IMPLEMENTED",
+        message: "Implement the v2 event detail in Part 2",
+        details: { sourcePath: "api/src/app.ts" },
+      },
+    });
   });
   app.use("/api/v2", v2);
   app.use("/v2", v2);
