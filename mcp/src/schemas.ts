@@ -16,6 +16,10 @@ export const EventSchema = z.looseObject({
   meetingUrl: z.url().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
+  localTime: z
+    .string()
+    .optional()
+    .describe("Start and end time already converted to Montreal time"),
 });
 
 export const RsvpSchema = z.looseObject({
