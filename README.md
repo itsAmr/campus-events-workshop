@@ -1,6 +1,6 @@
 # Build Your Own API and MCP Server
 
-A two-hour, hands-on workshop co-hosted by Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS). You will build a campus-events REST API, version it, expose it through a separate Model Context Protocol (MCP) server, and use those tools from a built-in Gemini chat.
+A two-hour, hands-on workshop co-hosted by Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS) on Friday, November 6, 2026. You will build a campus-events REST API, version it, expose it through a separate Model Context Protocol (MCP) server, and use those tools from a built-in Gemini chat.
 
 ## What you will build
 

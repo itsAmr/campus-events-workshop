@@ -81,7 +81,10 @@ if (process.env.LLM_API_KEY) {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      // Gemini wraps errors in an array; OpenAI-style providers use an object.
+      const body = await response.json().catch(() => null);
+      const detail = (Array.isArray(body) ? body[0] : body)?.error?.message;
+      throw new Error(`HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
     }
   });
 } else {
