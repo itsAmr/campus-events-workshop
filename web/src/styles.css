@@ -76,9 +76,9 @@
   border-radius: var(--pico-border-radius);
 }
 
-dialog footer button {
+/* Pico makes every submit button full-width; keep dialog actions side by side. */
+dialog footer button[type="submit"] {
   width: auto;
-  margin-bottom: 0;
 }
 
 .error {
