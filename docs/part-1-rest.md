@@ -124,7 +124,7 @@ Expected path:
 
 - `web/src/api.ts` — REST and chat client
 
-Set the client base URL from the starter environment variable; do not hardcode a production URL. Open `http://localhost:5173` and confirm seeded and newly created events render.
+The web app calls `/api/v1` and Vite proxies it to the API (`web/vite.config.ts`), so no frontend change is needed. Open `http://localhost:5173`: the "Not implemented yet" message disappears as soon as your list route works, and search, category, and date filters are sent to your API as query parameters. Create an event with missing fields to see your `400` field errors next to each input.
 
 ## Final acceptance
 
