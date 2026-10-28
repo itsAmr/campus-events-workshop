@@ -30,6 +30,25 @@ export interface CampusMcpServerOptions extends CampusApiClientOptions {
 
 const API_PREFIX = "/api/v1";
 
+// The API speaks UTC. Models are unreliable at timezone math, so the MCP
+// server hands them a ready-to-quote Montreal time alongside the timestamps.
+const montrealTime = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Toronto",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+function withLocalTime(event: CampusEvent): CampusEvent {
+  const range = montrealTime.formatRange(
+    new Date(event.startsAt),
+    new Date(event.endsAt),
+  );
+  return { ...event, localTime: `${range} (Montreal time)` };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -103,7 +122,7 @@ export function createCampusMcpServer(
     {
       title: "Search campus events",
       description:
-        "Search by text, category, and a Montreal-local date range. Range end dates are exclusive.",
+        "Search by text, category, and a Montreal-local date range. Range end dates are exclusive. When telling the user when an event happens, quote its localTime rather than converting startsAt yourself.",
       inputSchema: SearchEventsInputSchema,
       outputSchema: SearchEventsOutputSchema,
       annotations: {
@@ -132,7 +151,7 @@ export function createCampusMcpServer(
           `${API_PREFIX}/events${suffix}`,
         );
         return {
-          events: unwrapList<CampusEvent>(body, "events"),
+          events: unwrapList<CampusEvent>(body, "events").map(withLocalTime),
           ...(range === undefined ? {} : { range }),
         };
       }),
@@ -156,7 +175,7 @@ export function createCampusMcpServer(
         const body = await api.request<unknown>(
           `${API_PREFIX}/events/${encodeURIComponent(id)}`,
         );
-        return { event: unwrapObject<CampusEvent>(body, "event") };
+        return { event: withLocalTime(unwrapObject<CampusEvent>(body, "event")) };
       }),
   );
 
@@ -214,7 +233,9 @@ export function createCampusMcpServer(
           method: "POST",
           body: input,
         });
-        return { event: EventSchema.parse(unwrapObject(body, "event")) };
+        return {
+          event: withLocalTime(EventSchema.parse(unwrapObject(body, "event"))),
+        };
       }),
   );
 

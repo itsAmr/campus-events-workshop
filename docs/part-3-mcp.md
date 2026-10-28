@@ -54,6 +54,8 @@ Expected tool names:
 
 Use the starter's schema helpers and MCP SDK APIs. Give every argument a type and description. Return structured event data rather than prose so the host can present it. Relative dates use `America/Montreal`.
 
+Pass each event through `withLocalTime` before returning it. The API speaks UTC, and models are unreliable at timezone math: without a pre-formatted `localTime`, Gemini will happily tell students a 1 PM event starts at 5 PM. Shaping data so the model can't get it wrong is a core job of an MCP server.
+
 Start the full stack:
 
 ```bash
