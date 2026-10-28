@@ -1,0 +1,42 @@
+@baseUrl = http://localhost:3001/api
+
+### Health
+GET http://localhost:3001/health
+
+### Categories (deprecated v1)
+GET {{baseUrl}}/v1/categories
+
+### Search and filter events
+GET {{baseUrl}}/v1/events?q=robotics&category=Engineering
+
+### Event detail
+GET {{baseUrl}}/v1/events/1
+
+### Create an event
+POST {{baseUrl}}/v1/events
+Content-Type: application/json
+
+{
+  "title": "Campus API Demo",
+  "description": "A hands-on REST API workshop.",
+  "category": "Technology",
+  "startsAt": "2027-01-10T18:00:00.000Z",
+  "endsAt": "2027-01-10T20:00:00.000Z",
+  "location": "Online",
+  "capacity": 40,
+  "meetingUrl": "https://events.mcgill.ca/meet/api-demo"
+}
+
+### RSVP
+POST {{baseUrl}}/v1/events/1/rsvps
+Content-Type: application/json
+
+{
+  "email": "student@mcgill.ca"
+}
+
+### Cancel RSVP
+DELETE {{baseUrl}}/v1/events/1/rsvps/student%40mcgill.ca
+
+### V2 event list (structured location)
+GET {{baseUrl}}/v2/events?q=AI%20Ethics

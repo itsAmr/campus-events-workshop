@@ -1,0 +1,72 @@
+@apiUrl = http://localhost:3001
+@mcpUrl = http://localhost:3002
+@chatUrl = http://localhost:3003
+
+### API health
+GET {{apiUrl}}/health
+Accept: application/json
+
+### List events
+GET {{apiUrl}}/api/events
+Accept: application/json
+
+### Filter events
+GET {{apiUrl}}/api/events?category=tech&from=2026-10-26T00:00:00.000Z&to=2026-11-02T00:00:00.000Z
+Accept: application/json
+
+### Get one event
+GET {{apiUrl}}/api/events/1
+Accept: application/json
+
+### Create an event
+POST {{apiUrl}}/api/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "McGill Web Dev Meetup",
+  "description": "Student talks and project demos.",
+  "category": "tech",
+  "location": "Trottier 0100",
+  "startsAt": "2026-10-30T22:00:00.000Z",
+  "endsAt": "2026-10-30T23:30:00.000Z"
+}
+
+### List events through the canonical v1 API
+GET {{apiUrl}}/api/v1/events?category=tech
+Accept: application/json
+
+### Get one event through the canonical v1 API
+GET {{apiUrl}}/api/v1/events/1
+Accept: application/json
+
+### Create an event through the canonical v1 API
+POST {{apiUrl}}/api/v1/events
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "API Design Study Group",
+  "description": "Practice stable contracts and useful errors.",
+  "category": "tech",
+  "location": "McConnell 103",
+  "startsAt": "2026-10-31T18:00:00.000Z",
+  "endsAt": "2026-10-31T19:00:00.000Z"
+}
+
+### MCP service health
+GET {{mcpUrl}}/health
+Accept: application/json
+
+### Chat service health
+GET {{chatUrl}}/health
+Accept: application/json
+
+### Ask the campus events assistant
+POST {{chatUrl}}/api/chat
+Content-Type: application/json
+Accept: application/json
+
+{
+  "message": "What events are happening this weekend?"
+}
