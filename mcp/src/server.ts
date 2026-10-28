@@ -122,7 +122,7 @@ export function createCampusMcpServer(
     {
       title: "Search campus events",
       description:
-        "Search by text, category, and a Montreal-local date range. Range end dates are exclusive. When telling the user when an event happens, quote its localTime rather than converting startsAt yourself.",
+        "Search by text, category, and a Montreal-local date range. Range end dates are exclusive. `query` is matched as one exact phrase against titles and descriptions, so pass one or two distinctive keywords (for example \"robotics\"), not the full event name or filler words like \"event\". If nothing matches, retry with fewer keywords before telling the user an event doesn't exist. When telling the user when an event happens, quote its localTime rather than converting startsAt yourself.",
       inputSchema: SearchEventsInputSchema,
       outputSchema: SearchEventsOutputSchema,
       annotations: {
