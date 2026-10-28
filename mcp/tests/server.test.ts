@@ -194,7 +194,13 @@ describe("campus events MCP server", () => {
     });
 
     expect(structured(result)).toMatchObject({
-      event: { id: 1, title: "Robotics demo" },
+      event: {
+        id: 1,
+        title: "Robotics demo",
+        localTime: expect.stringMatching(
+          /^Tue, Oct 27, 6:00\s*–\s*9:00\sPM \(Montreal time\)$/,
+        ),
+      },
     });
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "http://127.0.0.1:3001/api/v1/events/1",
