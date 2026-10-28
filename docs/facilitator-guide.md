@@ -1,6 +1,6 @@
 # Facilitator Guide
 
-A joint event between Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS). The seed data mixes McGill and Concordia events so both groups see their own campus.
+A joint event between Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS) on Friday, November 6, 2026. The seed data mixes McGill and Concordia events so both groups see their own campus.
 
 ## Outcomes
 
