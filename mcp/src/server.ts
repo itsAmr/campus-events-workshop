@@ -94,6 +94,10 @@ export function createCampusMcpServer(
       }),
   );
 
+  // TODO(part-3): register search_events, get_event, rsvp_to_event, and
+  // create_event below. Remove this early return when you begin Part 3.
+  return server;
+
   server.registerTool(
     "search_events",
     {
