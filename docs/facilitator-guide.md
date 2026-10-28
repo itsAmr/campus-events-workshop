@@ -52,11 +52,10 @@ Use 0:00–0:15 for welcome, setup triage, the restaurant analogy, architecture,
 | 0:45–0:55 | Part 1: create route and React check | `POST` returns `201`; event appears in browser |
 | 0:55–1:10 | Part 2: add `/api/v2` without breaking v1 | Both response contracts work |
 | 1:10–1:15 | Reset and explain MCP boundary | Students can say why MCP does not open SQLite |
-| 1:15–1:32 | Part 3: REST client and read tools | Inspector calls `search_events` |
-| 1:32–1:41 | Add `create_event` and approval boundary | Inspector write works; host approval is discussed |
-| 1:41–1:47 | Connect built-in Gemini chat | “Tech events this week” returns grounded results |
-| 1:47–1:54 | Debug a bad tool call | Students fix the `search_events` description and the robotics question succeeds |
-| 1:54–1:57 | Prompt-injection safety demo | Malicious event text triggers no tool |
+| 1:15–1:35 | Part 3: REST client and read tools | Inspector calls `search_events` |
+| 1:35–1:45 | Add `create_event` and approval boundary | Inspector write works; host approval is discussed |
+| 1:45–1:53 | Connect built-in Gemini chat | “Tech events this week” returns grounded results |
+| 1:53–1:57 | Prompt-injection safety demo | Malicious event text triggers no tool |
 | 1:57–2:00 | Recap, key revocation, next steps | Students can state the five takeaways |
 
 Announce five- and two-minute warnings before each checkpoint. Protect the final seven minutes; the safety demo and recap are core content.
@@ -104,23 +103,6 @@ Then demonstrate a write:
 4. The user, acting as manager, rejects the first order; verify no write.
 5. Repeat, approve, and verify the event through REST and the React app.
 
-## Exercise: debug a bad tool call
-
-This is Part 3, TODO 5. Run it live first, then let students repeat it.
-
-1. Ask: “Is there space remaining in the mcgill robotics open house event?” Gemini often searches for the whole phrase `mcgill robotics open house event` and reports that the event doesn't exist. It doesn't happen every time, so be ready to ask twice.
-2. Expand the `search_events` trace and read the `query` aloud. The model did exactly what the tool's description allowed.
-3. Run the two `curl` calls from the student guide to show the API returns nothing for the phrase and one result for `robotics`.
-4. Edit the tool description live. Saving reloads the MCP server, and the chat host re-reads tool descriptions on every message, so the retry works without restarting anything.
-
-Talking points:
-
-- Back to the restaurant: the menu was vague, so the customer ordered something the kitchen couldn't make. Fix the menu.
-- Debug from evidence: tool trace, then reproduce with `curl`, then fix. Don't guess at prompt wording.
-- “Not publicly listed” was invented. Models fill gaps confidently, which is why traces matter.
-
-The `solution` branch contains the improved description; `main` and both checkpoints keep the vague one so the bug reproduces.
-
 ## Demo prompts
 
 Use prompts in this order:
@@ -135,10 +117,6 @@ Which one starts first? Include its location and tell me which tool supplied the
 
 ```text
 Create “MCP Practice” tomorrow at 6 PM in Trottier.
-```
-
-```text
-Is there space remaining in the mcgill robotics open house event?
 ```
 
 The third prompt should force clarification of duration and timezone if the host cannot safely infer them.
@@ -211,7 +189,6 @@ After the workshop:
 - **Inspector cannot connect:** check the workspace script and ensure protocol messages are not mixed with stdout logs.
 - **Chat works but has no tools:** verify the chat host launched/connected to MCP and received the tool list.
 - **Wrong weekly results:** inspect timezone boundaries and seeded dates; do not hide a date bug with prompt wording.
-- **Gemini returns HTTP 503 “high demand”:** this is Google's capacity, not the code, and it usually clears within minutes. If it persists, set `LLM_MODEL=gemini-2.5-flash-lite` in `.env` and restart `npm run dev`.
 - **Writes happen without confirmation:** stop the demo. This is a release-blocking defect, not an optional enhancement.
 - **Provider outage or quota:** continue with `curl` and Inspector, then show the prepared recorded/live completed flow.
 
