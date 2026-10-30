@@ -13,7 +13,7 @@
     "node": ">=22.19"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=.env ./node_modules/concurrently/dist/bin/concurrently.js --kill-others-on-fail --names web,api,mcp,chat --prefix-colors green,blue,magenta,cyan \"npm run dev --workspace web\" \"npm run dev --workspace api\" \"npm run dev --workspace mcp\" \"npm run dev --workspace chat\"",
+    "dev": "node scripts/doctor.mjs --quick && node --env-file-if-exists=.env ./node_modules/concurrently/dist/bin/concurrently.js --kill-others-on-fail --names web,api,mcp,chat --prefix-colors green,blue,magenta,cyan \"npm run dev --workspace web\" \"npm run dev --workspace api\" \"npm run dev --workspace mcp\" \"npm run dev --workspace chat\"",
     "test": "npm run test --workspaces --if-present",
     "test:solution": "npm run test:solution --workspaces --if-present",
     "db:reset": "npm run db:reset --workspace api",
