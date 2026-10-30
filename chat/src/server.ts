@@ -276,7 +276,13 @@ const isMain =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMain) {
-  createApp().listen(3003, "127.0.0.1", () => {
+  createApp().listen(3003, "127.0.0.1", (error) => {
+    if (error) {
+      console.error(
+        `Could not start the chat service on port 3003: ${error.message}. Another program may be using the port; run "npm run doctor" to check.`,
+      );
+      process.exit(1);
+    }
     console.log("Chat service listening on http://127.0.0.1:3003");
   });
 }

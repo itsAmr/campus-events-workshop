@@ -2,6 +2,9 @@ import net from "node:net";
 
 const requiredNode = [22, 19, 0];
 const ports = [3001, 3002, 3003, 5173];
+// `npm run dev` runs this first with --quick: only failures print, and the
+// Gemini check is skipped so starting the stack never spends quota.
+const quick = process.argv.includes("--quick");
 let failed = false;
 
 try {
@@ -28,7 +31,7 @@ function versionAtLeast(current, required) {
 async function check(label, operation) {
   try {
     await operation();
-    console.log(`✓ ${label}`);
+    if (!quick) console.log(`✓ ${label}`);
   } catch (error) {
     failed = true;
     console.error(`✗ ${label}: ${error.message}`);
@@ -60,7 +63,7 @@ for (const port of ports) {
   await check(`port ${port} is available`, () => assertPortAvailable(port));
 }
 
-if (process.env.LLM_API_KEY) {
+if (!quick && process.env.LLM_API_KEY) {
   await check("LLM responds to a tiny request", async () => {
     const baseUrl = (
       process.env.LLM_BASE_URL
@@ -87,12 +90,17 @@ if (process.env.LLM_API_KEY) {
       throw new Error(`HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
     }
   });
-} else {
+} else if (!quick) {
   console.log("− LLM check skipped (LLM_API_KEY is not set)");
 }
 
 if (failed) {
   process.exitCode = 1;
-} else {
+  if (quick) {
+    console.error(
+      'Fix the problem above, then run "npm run dev" again. A busy port is usually an earlier "npm run dev" that is still running.',
+    );
+  }
+} else if (!quick) {
   console.log("Doctor checks passed.");
 }
