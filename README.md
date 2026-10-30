@@ -163,7 +163,7 @@ npm run dev
 ### All platforms
 
 - **Wrong Node version:** install Node 24, open a new terminal, and rerun `node --version`.
-- **Address already in use:** stop the process using ports 5173, 3001, 3002, or 3003; avoid changing one service's port without updating its clients.
+- **Address already in use / "port … is available" fails:** `npm run dev` checks ports 5173, 3001, 3002, and 3003 before starting. Usually an earlier `npm run dev` is still running in another terminal; stop it with Ctrl+C. To find the program, run `lsof -i :3002` on macOS/Linux or `netstat -ano | findstr :3002` on Windows. Avoid changing one service's port without updating its clients.
 - **Gemini authentication error:** check that `.env` exists at the expected root, contains no quotes copied from a web page, and was never committed. Restart `npm run dev` after editing it.
 - **Rate limit or model error:** wait briefly, use the facilitator fallback procedure, and keep the configured model default rather than guessing a model name.
 - **SQLite busy/locked:** stop duplicate dev processes, then restart one `npm run dev`. Do not delete the database unless the facilitator explicitly says the data is disposable.

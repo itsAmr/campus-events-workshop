@@ -27,7 +27,13 @@ app.all("/mcp", async (request, response, next) => {
   }
 });
 
-const httpServer = app.listen(port, host, () => {
+const httpServer = app.listen(port, host, (error) => {
+  if (error) {
+    console.error(
+      `Could not start the MCP server on port ${port}: ${error.message}. Another program may be using the port; run "npm run doctor" to check.`,
+    );
+    process.exit(1);
+  }
   console.log(`Campus events MCP server listening at http://${host}:${port}/mcp`);
 });
 
