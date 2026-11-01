@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "db:reset": "tsx src/db/reset.ts"
+    "db:reset": "tsx src/db/reset.ts",
+    "db:shell": "tsx src/db/shell.ts"
   },
   "dependencies": {
     "express": "^5.1.0",
