@@ -20,7 +20,7 @@ The reply's **status code** says what happened: `200` OK, `201` Created, `400` b
 
 Open `api/src/app.ts`. Every route does the same three things:
 
-1. **Check the request** with a schema from `events/requests.ts`. Bad input stops here with a `400`.
+1. **Read the request** with a function from `events/requests.ts`, like `readEventId(request)`. It checks the input for you, so bad input stops here with a `400`.
 2. **Read or write the database** with a function from `events/store.ts`. This is where the SQL and the rules live.
 3. **Reply** with `{ data: ... }`, built by a function from `events/responses.ts`.
 
