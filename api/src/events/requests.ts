@@ -1,9 +1,10 @@
+import type { Request } from "express";
 import { z } from "zod";
 import { FieldError } from "../errors.js";
 
-// What clients may send. Calling .parse() on a schema returns the cleaned-up
-// value, or throws, and the error handler turns that into a 400 reply that
-// lists what's wrong with each field.
+// Routes call the read functions at the bottom of this file. Each one checks
+// one part of a request and returns clean values, or throws, and the error
+// handler turns that into a 400 reply that lists what's wrong with each field.
 
 // Text that can't be blank, up to a maximum length.
 const text = (maxLength: number) => z.string().trim().min(1).max(maxLength);
@@ -18,15 +19,8 @@ const email = z
   .email()
   .transform((value) => value.toLowerCase());
 
-// The :id in URLs like /events/7.
-export function parseId(value: string): number {
-  const id = Number(value);
-  if (!Number.isInteger(id) || id < 1) throw new FieldError("id", "Must be a whole number above 0");
-  return id;
-}
-
 // GET /events?q=robotics&category=Technology&from=...&to=...&email=...
-export const eventFilters = z.object({
+const eventFilters = z.object({
   q: text(100).optional(),
   category: text(60).optional(),
   from: time.optional(),
@@ -45,19 +39,39 @@ const eventFields = z.object({
   meetingUrl: z.url().nullable().optional(),
 });
 
-// POST /events
-export const newEvent = eventFields.refine((event) => event.endsAt > event.startsAt, {
+const newEvent = eventFields.refine((event) => event.endsAt > event.startsAt, {
   path: ["endsAt"],
   message: "Must be after startsAt",
 });
 
-// PATCH /events/:id (stretch): any of the same fields.
-export const eventChanges = eventFields.partial();
+const eventChanges = eventFields.partial();
 
-// POST /events/:id/rsvps
-export const rsvpRequest = z.object({ email });
+const rsvpRequest = z.object({ email });
 
-// TypeScript types for the values above, used by store.ts.
 export type EventFilters = z.infer<typeof eventFilters>;
 export type NewEvent = z.infer<typeof newEvent>;
 export type EventChanges = z.infer<typeof eventChanges>;
+
+export function readFilters(request: Request): EventFilters {
+  return eventFilters.parse(request.query);
+}
+
+// The :id in URLs like /events/7.
+export function readEventId(request: Request): number {
+  const id = Number(request.params.id);
+  if (!Number.isInteger(id) || id < 1) throw new FieldError("id", "Must be a whole number above 0");
+  return id;
+}
+
+export function readNewEvent(request: Request): NewEvent {
+  return newEvent.parse(request.body);
+}
+
+export function readEventChanges(request: Request): EventChanges {
+  return eventChanges.parse(request.body);
+}
+
+// From the URL when cancelling (/rsvps/:email), otherwise from the body.
+export function readEmail(request: Request): string {
+  return rsvpRequest.parse({ email: request.params.email ?? request.body?.email }).email;
+}
