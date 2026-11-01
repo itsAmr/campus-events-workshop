@@ -1,4 +1,15 @@
-import { z } from "zod";
+import { z, type ZodType } from "zod";
+
+// These schemas describe what clients may send. parse() throws a ZodError for
+// bad input, and the error handler turns it into a 400 with per-field messages.
+
+export function parse<T>(schema: ZodType<T>, value: unknown): T {
+  return schema.parse(value);
+}
+
+export function parseId(value: string): number {
+  return parse(z.coerce.number().int().positive(), value);
+}
 
 const dateTime = z
   .string()
@@ -7,9 +18,7 @@ const dateTime = z
 
 const queryDate = z.union([dateTime, z.iso.date()]);
 
-export const eventIdSchema = z.coerce.number().int().positive();
-
-export const eventFiltersSchema = z
+export const eventFilters = z
   .object({
     q: z.string().trim().min(1).max(100).optional(),
     category: z.string().trim().min(1).max(60).optional(),
@@ -34,7 +43,7 @@ const eventFields = {
   meetingUrl: z.url().nullable().optional(),
 };
 
-export const createEventSchema = z
+export const newEvent = z
   .object(eventFields)
   .strict()
   .refine((value) => value.endsAt > value.startsAt, {
@@ -42,20 +51,19 @@ export const createEventSchema = z
     message: "Must be after startsAt",
   });
 
-export const updateEventSchema = z
+export const eventChanges = z
   .object(eventFields)
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
   })
-  .refine(
-    (value) =>
-      !value.startsAt || !value.endsAt || value.endsAt > value.startsAt,
-    { path: ["endsAt"], message: "Must be after startsAt" },
-  );
+  .refine((value) => !value.startsAt || !value.endsAt || value.endsAt > value.startsAt, {
+    path: ["endsAt"],
+    message: "Must be after startsAt",
+  });
 
-export const rsvpSchema = z
+export const rsvpRequest = z
   .object({
     email: z
       .string()
@@ -64,3 +72,7 @@ export const rsvpSchema = z
       .transform((email) => email.toLowerCase()),
   })
   .strict();
+
+export type EventFilters = z.infer<typeof eventFilters>;
+export type NewEvent = z.infer<typeof newEvent>;
+export type EventChanges = z.infer<typeof eventChanges>;

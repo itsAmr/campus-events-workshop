@@ -1,11 +1,11 @@
 # Part 0 — Design the database
 
-**Target time:** 15 minutes  
-**Goal:** design the table that stores RSVPs so the database itself guarantees the rules that must never break.
+**Time:** 15 minutes  
+**Goal:** design the table that stores RSVPs, so the database itself guarantees the rules that must never break.
 
-The app lets students RSVP to events. The `events` table already exists in `api/migrations/001_init.sql`. You will add the `rsvps` table next to it.
+The `events` table already exists in `api/migrations/001_init.sql`. You will add the `rsvps` table next to it.
 
-## TODO 1: what could go wrong?
+## Discuss: what could go wrong?
 
 Your facilitator will show three ways to store RSVPs. For each one, ask: what happens when someone cancels, RSVPs twice, or an event is deleted?
 
@@ -22,13 +22,9 @@ Your facilitator will show three ways to store RSVPs. For each one, ask: what ha
 
 </details>
 
-## TODO 2: write the `rsvps` table
+## 0.1 Design the `rsvps` table
 
-Expected path:
-
-- `api/migrations/001_init.sql` — find `TODO(part-0)`
-
-The rest of the app reads these exact columns, so keep the names:
+Open `api/migrations/001_init.sql` and find `TODO(part-0.1)`. The rest of the app reads these exact columns, so keep the names:
 
 | Column | Holds |
 | --- | --- |
@@ -44,12 +40,12 @@ How you enforce these rules is up to you:
 3. Deleting an event deletes its RSVPs.
 4. An RSVP always has an email.
 
-Keywords worth looking up: `PRIMARY KEY`, `AUTOINCREMENT`, `NOT NULL`, `DEFAULT`, `FOREIGN KEY ... REFERENCES`, `ON DELETE CASCADE`, and `UNIQUE (...)`. The `events` table above uses several of them. Copy its `created_at` definition so every timestamp in the database uses the same UTC format.
+Keywords worth looking up: `PRIMARY KEY`, `AUTOINCREMENT`, `NOT NULL`, `DEFAULT`, `FOREIGN KEY ... REFERENCES`, `ON DELETE CASCADE`, and `UNIQUE (...)`. The `events` table above uses several of them. Copy its `created_at` line so every timestamp in the database uses the same UTC format.
 
 Check your design. Each test is one rule:
 
 ```bash
-npm test --workspace api -- schema
+npm run check:0
 ```
 
 Then rebuild your local database so it has the new table:
@@ -60,7 +56,7 @@ npm run db:reset
 
 The database records which migration files it has already run, so it never runs `001_init.sql` twice. Editing an old migration only works here because your local database is disposable. A real project adds a new migration file instead, as you will see in Part 2.
 
-## TODO 3: watch the database say no
+## Watch the database say no
 
 Open a SQL prompt on your local database:
 
@@ -83,9 +79,9 @@ Think about it: the API already checks for a duplicate RSVP before inserting one
 
 Stretch: should `Martlet@McGill.ca` and `martlet@mcgill.ca` count as the same person? Look up `COLLATE NOCASE`.
 
-## Checkpoint
+## Done when
 
-- [ ] `npm test --workspace api -- schema` passes.
+- [ ] `npm run check:0` passes.
 - [ ] A double RSVP fails in `npm run db:shell`.
 
-If you are blocked, save your work and switch to `checkpoint/0-database`, then run `npm run db:reset`.
+Stuck? Run `git stash` to set your changes aside, then `git switch checkpoint/0-database` and `npm run db:reset`.

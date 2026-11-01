@@ -25,7 +25,6 @@ export const EventSchema = z.looseObject({
 export const RsvpSchema = z.looseObject({
   id: z.number().int().positive(),
   eventId: z.number().int().positive(),
-  name: z.string(),
   email: z.email(),
   createdAt: z.iso.datetime({ offset: true }),
 });
@@ -70,7 +69,6 @@ export const GetEventOutputSchema = z.object({
 
 export const RsvpInputSchema = z.object({
   eventId: z.number().int().positive(),
-  name: z.string().min(1),
   email: z.email(),
 });
 export const RsvpOutputSchema = z.object({
@@ -104,7 +102,4 @@ export const PlanCampusWeekArgsSchema = z.object({
   availability: z.string().min(1).optional(),
 });
 
-export type Category = z.infer<typeof CategorySchema>;
 export type CampusEvent = z.infer<typeof EventSchema>;
-export type Rsvp = z.infer<typeof RsvpSchema>;
-export type CreateEventInput = z.infer<typeof CreateEventInputSchema>;

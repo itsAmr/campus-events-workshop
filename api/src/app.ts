@@ -1,32 +1,31 @@
-import express, {
-  type ErrorRequestHandler,
-  type RequestHandler,
-} from "express";
-import { ZodError, type ZodType } from "zod";
+import express, { type RequestHandler } from "express";
+import { createDatabase, type CampusDatabase } from "./db/database.js";
+import { errorHandler, notImplemented, unknownRoute } from "./errors.js";
 import {
-  createDatabase,
-  type CampusDatabase,
-} from "./db/database.js";
-import { DomainError } from "./domain/errors.js";
-import { toRsvp, toV1Event, toV2Event } from "./events/mappers.js";
+  eventChanges,
+  eventFilters,
+  newEvent,
+  parse,
+  parseId,
+  rsvpRequest,
+} from "./events/requests.js";
+import { toRsvp, toV1Event, toV2Event } from "./events/responses.js";
 import {
-  createEventSchema,
-  eventFiltersSchema,
-  eventIdSchema,
-  rsvpSchema,
-  updateEventSchema,
-} from "./events/schemas.js";
-import { EventService } from "./events/service.js";
+  cancelRsvp,
+  createEvent,
+  deleteEvent,
+  getEvent,
+  listCategories,
+  listEvents,
+  rsvp,
+  updateEvent,
+} from "./events/store.js";
 
-export type CreateAppOptions = {
-  db?: CampusDatabase;
-};
-
-function parse<T>(schema: ZodType<T>, value: unknown): T {
-  return schema.parse(value);
-}
-
-const parseId = (value: string): number => parse(eventIdSchema, value);
+// Every route follows the same three steps:
+//   1. check the request with a schema from events/requests.ts
+//   2. read or write the database with a function from events/store.ts
+//   3. reply with { data: ... } built by a function from events/responses.ts
+// Errors thrown in steps 1 and 2 become JSON error replies automatically.
 
 const v1LifecycleHeaders: RequestHandler = (_request, response, next) => {
   response.set("Deprecation", "true");
@@ -34,12 +33,9 @@ const v1LifecycleHeaders: RequestHandler = (_request, response, next) => {
   next();
 };
 
-export function createApp(options: CreateAppOptions = {}) {
+export function createApp(options: { db?: CampusDatabase } = {}) {
   const db = options.db ?? createDatabase();
-  const service = new EventService(db);
   const app = express();
-  app.locals.db = db;
-
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
 
@@ -51,162 +47,87 @@ export function createApp(options: CreateAppOptions = {}) {
   v1.use(v1LifecycleHeaders);
 
   v1.get("/categories", (_request, response) => {
-    response.json({ data: service.categories() });
+    response.json({ data: listCategories(db) });
   });
 
-  v1.get("/events", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Implement event listing in Part 1",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.1): list events (worked example).
+  //   1. Check the query string:  const filters = parse(eventFilters, request.query);
+  //   2. Ask the database:        const events = listEvents(db, filters);
+  //   3. Reply:                   response.json({ data: events.map(toV1Event) });
+  // Try it: http://localhost:3001/api/v1/events?category=Technology
+  v1.get("/events", (request, response) => {
+    notImplemented("1.1");
   });
 
-  v1.get("/events/:id", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Implement event detail in Part 1",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.2): get one event.
+  //   1. Turn the :id from the URL into a number with parseId(request.params.id).
+  //   2. Ask the database with getEvent(db, id). It throws a 404 for you when the
+  //      event doesn't exist.
+  //   3. Reply with { data: toV1Event(event) }.
+  // Try it: http://localhost:3001/api/v1/events/1, then /api/v1/events/999
+  v1.get("/events/:id", (request, response) => {
+    notImplemented("1.2");
   });
 
-  v1.post("/events", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Implement event creation in Part 1",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.3): create an event.
+  //   1. Check the body with parse(newEvent, request.body). Bad input becomes a
+  //      400 with a message for each field.
+  //   2. Save it with createEvent(db, input).
+  //   3. Reply with status 201 (Created): response.status(201).json({ data: toV1Event(event) });
+  // Try it: click "Create event" in the web app, once with a field left empty.
+  v1.post("/events", (request, response) => {
+    notImplemented("1.3");
   });
 
-  v1.patch("/events/:id", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Stretch: implement event updates",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.4): RSVP to an event.
+  //   1. Get the email from the body: const { email } = parse(rsvpRequest, request.body);
+  //   2. Save it with rsvp(db, eventId, email). It throws a 409 when this email
+  //      already RSVP'd or the event is full.
+  //   3. Reply with status 201 and { data: toRsvp(created) }.
+  // Try it: click RSVP in the web app, then try the full "Tiny Climate Action Workshop".
+  v1.post("/events/:id/rsvps", (request, response) => {
+    notImplemented("1.4");
   });
 
-  v1.delete("/events/:id", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Stretch: implement event deletion",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.5): Stretch: update an event.
+  //   Use updateEvent(db, id, parse(eventChanges, request.body)) and reply with
+  //   { data: toV1Event(event) }.
+  v1.patch("/events/:id", (request, response) => {
+    notImplemented("1.5");
   });
 
-  v1.post("/events/:id/rsvps", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Implement RSVP creation in Part 1",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.6): Stretch: delete an event.
+  //   Use deleteEvent(db, id), then reply 204 (No Content): response.status(204).end();
+  v1.delete("/events/:id", (request, response) => {
+    notImplemented("1.6");
   });
 
-  v1.delete("/events/:id/rsvps/:email", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Stretch: implement RSVP cancellation",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+  // TODO(part-1.7): Stretch: cancel an RSVP.
+  //   Check the email with parse(rsvpRequest, { email: request.params.email }),
+  //   use cancelRsvp(db, id, email), then reply 204.
+  v1.delete("/events/:id/rsvps/:email", (request, response) => {
+    notImplemented("1.7");
   });
 
   app.use("/api/v1", v1);
-  app.use("/v1", v1);
 
   const v2 = express.Router();
-  v2.get("/events", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Implement the v2 event collection in Part 2",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+
+  // TODO(part-2.2): serve v2 events.
+  //   Same steps as 1.1 and 1.2, but build each reply with toV2Event instead of
+  //   toV1Event. The database and its rules don't change; only the response does.
+  // Try it: http://localhost:3001/api/v2/events/1
+  v2.get("/events", (request, response) => {
+    notImplemented("2.2");
   });
-  v2.get("/events/:id", (_request, response) => {
-    response.status(501).json({
-      error: {
-        code: "NOT_IMPLEMENTED",
-        message: "Implement the v2 event detail in Part 2",
-        details: { sourcePath: "api/src/app.ts" },
-      },
-    });
+
+  v2.get("/events/:id", (request, response) => {
+    notImplemented("2.2");
   });
+
   app.use("/api/v2", v2);
-  app.use("/v2", v2);
 
-  app.use((_request, response) => {
-    response.status(404).json({
-      error: { code: "NOT_FOUND", message: "Route not found" },
-    });
-  });
-
-  const errorHandler: ErrorRequestHandler = (
-    error,
-    _request,
-    response,
-    _next,
-  ) => {
-    if (error instanceof ZodError) {
-      const flattened = error.flatten();
-      response.status(400).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Request validation failed",
-          details: {
-            fields: flattened.fieldErrors,
-            ...(flattened.formErrors.length
-              ? { form: flattened.formErrors }
-              : {}),
-          },
-        },
-      });
-      return;
-    }
-
-    if (error instanceof DomainError) {
-      response.status(error.status).json({
-        error: {
-          code: error.code,
-          message: error.message,
-          ...(error.details === undefined ? {} : { details: error.details }),
-        },
-      });
-      return;
-    }
-
-    if (error instanceof SyntaxError && "body" in error) {
-      response.status(400).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Request body must contain valid JSON",
-        },
-      });
-      return;
-    }
-
-    response.status(500).json({
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "An unexpected error occurred",
-      },
-    });
-  };
+  app.use(unknownRoute);
   app.use(errorHandler);
-
   return app;
 }
