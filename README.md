@@ -94,6 +94,7 @@ The branches are `main` (start), `checkpoint/0-database`, `checkpoint/1-rest`, `
 - **A port is already in use:** an earlier `npm run dev` is probably still running in another terminal. Stop it with Ctrl+C.
 - **Chat says the API key is missing or invalid:** check `.env` is in the project root and the key has no quotes around it, then restart `npm run dev`.
 - **`no such table: rsvps`:** finish Part 0 (or switch to a checkpoint), then run `npm run db:reset`.
+- **No upcoming events, or the chat finds nothing "this week":** sample event dates are counted from when your database was created. Run `npm run db:reset` for fresh ones.
 - **Windows:** use PowerShell or Git Bash, and keep the project out of a OneDrive folder.
 - **Never** run `sudo npm install`. Run `npm install` from the project root, not inside a folder like `api/`.
 
