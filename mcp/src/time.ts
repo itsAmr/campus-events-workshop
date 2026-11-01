@@ -1,3 +1,5 @@
+// Montreal date helpers used by search_events. You do not need to read this file.
+
 export const CAMPUS_TIMEZONE = "America/Montreal" as const;
 
 export type EventWhen =
@@ -142,4 +144,20 @@ export function resolveCampusDateRange(
   }
 
   return range(today, end);
+}
+
+const montrealTime = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Toronto",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+// The API speaks UTC, and models are unreliable at timezone math, so every event
+// handed to the model carries a ready-to-quote Montreal time.
+export function withLocalTime<T extends { startsAt: string; endsAt: string }>(event: T) {
+  const range = montrealTime.formatRange(new Date(event.startsAt), new Date(event.endsAt));
+  return { ...event, localTime: `${range} (Montreal time)` };
 }

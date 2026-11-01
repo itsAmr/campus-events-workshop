@@ -34,7 +34,7 @@ const formatDate = (iso: string) =>
     minute: "2-digit",
   });
 
-// Polls the REST API so changes made elsewhere (curl, MCP, the assistant)
+// Polls the REST API so changes made elsewhere (the chat, another tab)
 // show up without a page refresh.
 function useEvents(q: string, category: string, thisWeek: boolean, email: string) {
   const [events, setEvents] = useState<CampusEvent[]>();

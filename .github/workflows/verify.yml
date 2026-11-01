@@ -39,17 +39,18 @@ jobs:
       - name: Build every workspace
         run: npm run build --workspaces --if-present
 
-      - name: Test the completed solution
-        if: github.ref_name == 'solution'
-        run: npm test
-
-      - name: Test the completed database checkpoint
-        if: github.ref_name == 'checkpoint/0-database'
-        run: npm test --workspace api -- schema
-
-      - name: Test the completed REST and versioning checkpoint
-        if: github.ref_name == 'checkpoint/2-versioning'
-        run: npm test --workspace api
+      - name: Run the checks for every part this branch has completed
+        shell: bash
+        run: |
+          case "$GITHUB_REF_NAME" in
+            checkpoint/0-database) parts="0" ;;
+            checkpoint/1-rest) parts="0 1" ;;
+            checkpoint/2-versioning) parts="0 1 2" ;;
+            solution) npm test; exit 0 ;;
+            *) parts="" ;;
+          esac
+          for part in $parts; do npm run "check:$part"; done
+          npm run todos
 
       - name: Check the workshop environment
         run: npm run doctor
