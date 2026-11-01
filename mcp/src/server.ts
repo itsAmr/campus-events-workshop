@@ -1,115 +1,60 @@
 import { McpServer } from "@modelcontextprotocol/server";
-
-import {
-  createCampusApiClient,
-  toToolResult,
-  type CampusApiClientOptions,
-} from "./api.js";
-import { resolveCampusDateRange } from "./dateRanges.js";
+import { createCampusApi, toToolResult, type CampusApiOptions } from "./api.js";
+import { registerExtras } from "./extras.js";
 import {
   CreateEventInputSchema,
   CreateEventOutputSchema,
-  EventSchema,
   GetEventInputSchema,
   GetEventOutputSchema,
   ListCategoriesInputSchema,
   ListCategoriesOutputSchema,
-  PlanCampusWeekArgsSchema,
   RsvpInputSchema,
   RsvpOutputSchema,
   SearchEventsInputSchema,
   SearchEventsOutputSchema,
   type CampusEvent,
-  type Category,
-  type Rsvp,
 } from "./schemas.js";
+import { resolveCampusDateRange, withLocalTime } from "./time.js";
 
-export interface CampusMcpServerOptions extends CampusApiClientOptions {
+// Every tool has the same parts:
+//   - a name and a description: the only documentation the model ever sees
+//   - an input schema: the arguments the model must send, checked before your code runs
+//   - annotations: whether the tool only reads, so the chat host knows when to ask
+//     the user for approval
+//   - a handler: calls the REST API and returns the result
+
+const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true };
+const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: false };
+
+export interface CampusMcpServerOptions extends CampusApiOptions {
   now?: () => Date;
 }
 
-const API_PREFIX = "/api/v1";
-
-// The API speaks UTC. Models are unreliable at timezone math, so the MCP
-// server hands them a ready-to-quote Montreal time alongside the timestamps.
-const montrealTime = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Toronto",
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-function withLocalTime(event: CampusEvent): CampusEvent {
-  const range = montrealTime.formatRange(
-    new Date(event.startsAt),
-    new Date(event.endsAt),
-  );
-  return { ...event, localTime: `${range} (Montreal time)` };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function unwrapList<T>(body: unknown, key: string): T[] {
-  if (Array.isArray(body)) {
-    return body as T[];
-  }
-  if (isRecord(body) && Array.isArray(body[key])) {
-    return body[key] as T[];
-  }
-  if (isRecord(body) && Array.isArray(body.data)) {
-    return body.data as T[];
-  }
-  return [];
-}
-
-function unwrapObject<T>(body: unknown, key: string): T {
-  if (isRecord(body) && body[key] !== undefined) {
-    return body[key] as T;
-  }
-  if (isRecord(body) && body.data !== undefined) {
-    return body.data as T;
-  }
-  return body as T;
-}
-
-export function createCampusMcpServer(
-  options: CampusMcpServerOptions = {},
-): McpServer {
-  const api = createCampusApiClient(options);
+export function createCampusMcpServer(options: CampusMcpServerOptions = {}): McpServer {
+  const api = createCampusApi(options);
   const now = options.now ?? (() => new Date());
   const server = new McpServer(
-    {
-      name: "campus-events",
-      version: "1.0.0",
-    },
+    { name: "campus-events", version: "1.0.0" },
     {
       instructions:
         "Use these tools to discover campus events, inspect details, RSVP, and create events. Dates are interpreted in America/Montreal.",
     },
   );
 
+  // Worked example: a read-only tool with no arguments.
   server.registerTool(
     "list_categories",
     {
       title: "List event categories",
-      description:
-        "Worked example: call with no arguments to list the categories accepted by search_events and create_event.",
+      description: "List the categories accepted by search_events and create_event.",
       inputSchema: ListCategoriesInputSchema,
       outputSchema: ListCategoriesOutputSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-      },
+      annotations: readOnly,
     },
     () =>
       toToolResult(async () => {
-        const body = await api.request<unknown>(`${API_PREFIX}/categories`);
-        return { categories: unwrapList<Category>(body, "categories") };
+        const categories = await api.get("/api/v1/categories");
+        return { categories };
       }),
   );
 
@@ -118,38 +63,23 @@ export function createCampusMcpServer(
     {
       title: "Search campus events",
       description:
-        "Search by text, category, and a Montreal-local date range. Range end dates are exclusive. `query` is matched as one exact phrase against titles and descriptions, so pass one or two distinctive keywords (for example \"robotics\"), not the full event name or filler words like \"event\". To filter by topic, prefer `category` (see list_categories). If nothing matches, retry with fewer keywords before telling the user an event doesn't exist. When telling the user when an event happens, quote its localTime rather than converting startsAt yourself.",
+        "Search by text, category, and a Montreal-local date range. `query` is matched as one exact phrase against titles and descriptions, so pass one or two distinctive keywords (for example \"robotics\"), not the full event name or filler words like \"event\". To filter by topic, prefer `category` (see list_categories). If nothing matches, retry with fewer keywords before telling the user an event doesn't exist. When telling the user when an event happens, quote its localTime rather than converting startsAt yourself.",
       inputSchema: SearchEventsInputSchema,
       outputSchema: SearchEventsOutputSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-      },
+      annotations: readOnly,
     },
     ({ query, category, when }) =>
       toToolResult(async () => {
         const range = resolveCampusDateRange(when, now());
         const search = new URLSearchParams();
-        if (query !== undefined) {
-          search.set("q", query);
-        }
-        if (category !== undefined) {
-          search.set("category", category);
-        }
-        if (range !== undefined) {
+        if (query) search.set("q", query);
+        if (category) search.set("category", category);
+        if (range) {
           search.set("from", range.from);
           search.set("to", range.to);
         }
-
-        const suffix = search.size > 0 ? `?${search.toString()}` : "";
-        const body = await api.request<unknown>(
-          `${API_PREFIX}/events${suffix}`,
-        );
-        return {
-          events: unwrapList<CampusEvent>(body, "events").map(withLocalTime),
-          ...(range === undefined ? {} : { range }),
-        };
+        const events: CampusEvent[] = await api.get(`/api/v1/events?${search}`);
+        return { events: events.map(withLocalTime), ...(range ? { range } : {}) };
       }),
   );
 
@@ -157,21 +87,15 @@ export function createCampusMcpServer(
     "get_event",
     {
       title: "Get an event",
-      description: "Get one campus event by ID.",
+      description: "Get one campus event by its ID, including how many spots are left.",
       inputSchema: GetEventInputSchema,
       outputSchema: GetEventOutputSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-      },
+      annotations: readOnly,
     },
     ({ id }) =>
       toToolResult(async () => {
-        const body = await api.request<unknown>(
-          `${API_PREFIX}/events/${encodeURIComponent(id)}`,
-        );
-        return { event: withLocalTime(unwrapObject<CampusEvent>(body, "event")) };
+        const event = await api.get(`/api/v1/events/${id}`);
+        return { event: withLocalTime(event) };
       }),
   );
 
@@ -179,33 +103,15 @@ export function createCampusMcpServer(
     "rsvp_to_event",
     {
       title: "RSVP to an event",
-      description: "Create an RSVP for a campus event.",
+      description: "RSVP an email address to a campus event. Confirm the email with the user first.",
       inputSchema: RsvpInputSchema,
       outputSchema: RsvpOutputSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-      },
+      annotations: write,
     },
-    ({ eventId, name, email }) =>
+    ({ eventId, email }) =>
       toToolResult(async () => {
-        const body = await api.request<unknown>(
-          `${API_PREFIX}/events/${encodeURIComponent(eventId)}/rsvps`,
-          {
-            method: "POST",
-            body: { email },
-          },
-        );
-        const response = unwrapObject<Partial<Rsvp>>(body, "rsvp");
-        return {
-          rsvp: {
-            ...response,
-            eventId: response.eventId ?? eventId,
-            name: response.name ?? name,
-            email: response.email ?? email,
-          },
-        };
+        const rsvp = await api.post(`/api/v1/events/${eventId}/rsvps`, { email });
+        return { rsvp };
       }),
   );
 
@@ -217,83 +123,15 @@ export function createCampusMcpServer(
         "Create an event. startsAt and endsAt must be ISO 8601 timestamps with an offset, and endsAt must be later.",
       inputSchema: CreateEventInputSchema,
       outputSchema: CreateEventOutputSchema,
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-      },
+      annotations: write,
     },
     (input) =>
       toToolResult(async () => {
-        const body = await api.request<unknown>(`${API_PREFIX}/events`, {
-          method: "POST",
-          body: input,
-        });
-        return {
-          event: withLocalTime(EventSchema.parse(unwrapObject(body, "event"))),
-        };
+        const event = await api.post("/api/v1/events", input);
+        return { event: withLocalTime(event) };
       }),
   );
 
-  server.registerResource(
-    "campus-guide",
-    "campus://guide",
-    {
-      title: "Campus events guide",
-      description: "How to use the campus events MCP tools.",
-      mimeType: "text/markdown",
-    },
-    (uri) => ({
-      contents: [
-        {
-          uri: uri.href,
-          mimeType: "text/markdown",
-          text: [
-            "# Campus events guide",
-            "",
-            "1. Call `list_categories` to discover valid categories.",
-            "2. Call `search_events` with `when` to search Montreal-local dates.",
-            "3. Call `get_event` before making an RSVP.",
-            "4. Use `rsvp_to_event` only after confirming the attendee details.",
-            "5. Use `create_event` after confirming all event fields and timestamps.",
-          ].join("\n"),
-        },
-      ],
-    }),
-  );
-
-  server.registerPrompt(
-    "plan-campus-week",
-    {
-      title: "Plan a campus week",
-      description:
-        "Build a balanced week plan from upcoming campus events and the user's interests.",
-      argsSchema: PlanCampusWeekArgsSchema,
-    },
-    ({ interests, availability }) => ({
-      description: "Plan a week of campus events.",
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: [
-              "Plan my campus week in America/Montreal.",
-              interests === undefined
-                ? "Use a varied mix of categories."
-                : `Prioritize these interests: ${interests}.`,
-              availability === undefined
-                ? "Ask about availability if timing choices are ambiguous."
-                : `Respect this availability: ${availability}.`,
-              "First list categories, then search this_week and inspect promising events.",
-              "Return a conflict-free schedule with event IDs, times, locations, and brief reasons.",
-              "Do not RSVP or create events without explicit confirmation.",
-            ].join(" "),
-          },
-        },
-      ],
-    }),
-  );
-
+  registerExtras(server);
   return server;
 }

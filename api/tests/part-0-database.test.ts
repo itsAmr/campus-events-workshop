@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatabase, type CampusDatabase } from "../src/db/database.js";
 
-describe("rsvps table", () => {
+describe("Part 0: the rsvps table", () => {
   let db: CampusDatabase;
   let eventId: number;
 

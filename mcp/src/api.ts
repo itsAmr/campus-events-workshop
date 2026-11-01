@@ -1,145 +1,65 @@
 import type { CallToolResult, JSONValue } from "@modelcontextprotocol/server";
 
-export interface CampusApiClientOptions {
+// A tiny client for the REST API from Parts 1 and 2. The MCP server never opens
+// the database; it only calls the same endpoints the web app uses.
+
+export interface CampusApiOptions {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
 }
 
-export interface ApiErrorBody {
-  code: string;
-  message: string;
-  details?: unknown;
-}
-
 export class CampusApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-  readonly details?: unknown;
-
-  constructor(status: number, error: ApiErrorBody) {
-    super(error.message);
-    this.name = "CampusApiError";
-    this.status = status;
-    this.code = error.code;
-    this.details = error.details;
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
   }
 }
 
-export interface CampusApiClient {
-  request<T>(
-    path: string,
-    init?: Omit<RequestInit, "body"> & { body?: unknown },
-  ): Promise<T>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function apiErrorBody(
-  value: unknown,
-  status: number,
-  fallbackMessage: string,
-): ApiErrorBody {
-  const root = isRecord(value) ? value : undefined;
-  const nested = root && isRecord(root.error) ? root.error : undefined;
-  const source = nested ?? root;
-
-  return {
-    code:
-      typeof source?.code === "string" ? source.code : `HTTP_${String(status)}`,
-    message:
-      typeof source?.message === "string" ? source.message : fallbackMessage,
-    ...(source && "details" in source ? { details: source.details } : {}),
-  };
-}
-
-export function createCampusApiClient(
-  options: CampusApiClientOptions = {},
-): CampusApiClient {
-  const baseUrl = (options.baseUrl ?? "http://127.0.0.1:3001").replace(
-    /\/+$/,
-    "",
-  );
+export function createCampusApi(options: CampusApiOptions = {}) {
+  const baseUrl = options.baseUrl ?? "http://127.0.0.1:3001";
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
+  async function call(method: string, path: string, body?: unknown): Promise<any> {
+    const response = await fetchImpl(`${baseUrl}${path}`, {
+      method,
+      headers: { accept: "application/json", "content-type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const json = await response.json().catch(() => undefined);
+    if (!response.ok) {
+      throw new CampusApiError(
+        json?.error?.code ?? `HTTP_${response.status}`,
+        json?.error?.message ?? `${method} ${path} failed with HTTP ${response.status}`,
+      );
+    }
+    if (json === undefined || !("data" in json)) {
+      throw new CampusApiError("UNEXPECTED_RESPONSE", `${method} ${path} should reply with { data: ... }`);
+    }
+    return json.data;
+  }
+
   return {
-    async request<T>(
-      path: string,
-      init: Omit<RequestInit, "body"> & { body?: unknown } = {},
-    ): Promise<T> {
-      const { body: requestBody, ...requestInit } = init;
-      const headers = new Headers(init.headers);
-      headers.set("accept", "application/json");
-      if (requestBody !== undefined) {
-        headers.set("content-type", "application/json");
-      }
-
-      const response = await fetchImpl(`${baseUrl}${path}`, {
-        ...requestInit,
-        headers,
-        ...(requestBody !== undefined
-          ? { body: JSON.stringify(requestBody) }
-          : {}),
-      });
-
-      const text = await response.text();
-      let body: unknown;
-      if (text.length > 0) {
-        try {
-          body = JSON.parse(text);
-        } catch {
-          body = text;
-        }
-      }
-
-      if (!response.ok) {
-        throw new CampusApiError(
-          response.status,
-          apiErrorBody(
-            body,
-            response.status,
-            text || response.statusText || "Campus API request failed",
-          ),
-        );
-      }
-
-      return body as T;
-    },
+    get: (path: string) => call("GET", path),
+    post: (path: string, body: unknown) => call("POST", path, body),
   };
 }
 
-export async function toToolResult<T extends Record<string, unknown>>(
-  operation: () => Promise<T>,
-): Promise<CallToolResult> {
+// Turns the result of an API call into what MCP sends back to the model: the
+// data as JSON, or an error the model can read and explain to the user.
+export async function toToolResult(work: () => Promise<Record<string, unknown>>): Promise<CallToolResult> {
   try {
-    const structuredContent = await operation();
+    const result = await work();
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(structuredContent),
-        },
-      ],
-      structuredContent: structuredContent as Record<string, JSONValue>,
+      content: [{ type: "text", text: JSON.stringify(result) }],
+      structuredContent: result as Record<string, JSONValue>,
     };
   } catch (error) {
-    const apiError =
+    const reason =
       error instanceof CampusApiError
         ? { code: error.code, message: error.message }
-        : {
-            code: "INTERNAL_ERROR",
-            message: error instanceof Error ? error.message : String(error),
-          };
-
-    return {
-      isError: true,
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(apiError),
-        },
-      ],
-    };
+        : { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message : String(error) };
+    return { isError: true, content: [{ type: "text", text: JSON.stringify(reason) }] };
   }
 }
