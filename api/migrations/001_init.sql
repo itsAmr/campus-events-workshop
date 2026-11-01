@@ -12,15 +12,13 @@ CREATE TABLE IF NOT EXISTS events (
   CHECK (ends_at > starts_at)
 );
 
-CREATE TABLE IF NOT EXISTS rsvps (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  event_id INTEGER NOT NULL,
-  email TEXT NOT NULL COLLATE NOCASE CHECK (length(trim(email)) > 3),
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-  UNIQUE (event_id, email)
-);
+-- TODO(part-0): create the rsvps table with columns id, event_id, email,
+-- and created_at. The database should guarantee that:
+--   1. every RSVP belongs to an event that exists;
+--   2. an email RSVPs to the same event at most once;
+--   3. deleting an event deletes its RSVPs; and
+--   4. every RSVP has an email.
+-- Check your design with: npm test --workspace api -- schema
 
 CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
 CREATE INDEX IF NOT EXISTS idx_events_category ON events(category);
-CREATE INDEX IF NOT EXISTS idx_rsvps_event_id ON rsvps(event_id);
