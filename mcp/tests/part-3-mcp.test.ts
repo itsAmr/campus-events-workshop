@@ -62,7 +62,12 @@ describe("Part 3: MCP server", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:3001/api/v1/categories");
   });
 
-  it("3.1 get_event calls GET /api/v1/events/:id", async () => {
+  it("3.1 search_events has a description that tells the model how to search", async () => {
+    const description = (await toolNamed("search_events"))?.description ?? "";
+    expect(description.length, "Explain what to search by and how to write query").toBeGreaterThan(80);
+  });
+
+  it("3.2 get_event calls GET /api/v1/events/:id", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: { ...eventFixture, title: "Robotics demo" } }));
     const result = await client.callTool({ name: "get_event", arguments: { id: 1 } });
 
@@ -77,13 +82,8 @@ describe("Part 3: MCP server", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:3001/api/v1/events/1");
   });
 
-  it("3.1 get_event is marked read-only, so the chat doesn't ask for approval", async () => {
+  it("3.2 get_event is marked read-only, so the chat doesn't ask for approval", async () => {
     expect((await toolNamed("get_event"))?.annotations?.readOnlyHint).toBe(true);
-  });
-
-  it("3.2 search_events has a description that tells the model how to search", async () => {
-    const description = (await toolNamed("search_events"))?.description ?? "";
-    expect(description.length, "Explain what to search by and how to write query").toBeGreaterThan(80);
   });
 
   it("search_events sends a Montreal-local date range to the API", async () => {
