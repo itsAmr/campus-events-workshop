@@ -45,7 +45,7 @@ jobs:
           case "$GITHUB_REF_NAME" in
             checkpoint/0-database) parts="0" ;;
             checkpoint/1-rest) parts="0 1" ;;
-            checkpoint/2-versioning) parts="0 1 2" ;;
+            checkpoint/2-responses) parts="0 1 2" ;;
             solution) npm test; exit 0 ;;
             *) parts="" ;;
           esac

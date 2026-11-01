@@ -8,7 +8,7 @@ export type CampusEvent = {
   description: string;
   category: string;
   location: string;
-  meetingUrl?: string;
+  meetingUrl?: string | null;
   startsAt: string;
   endsAt: string;
   capacity: number;

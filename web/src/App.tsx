@@ -184,6 +184,14 @@ export default function App() {
                 <br />
                 <small>
                   {formatDate(event.startsAt)} · {event.location} · {event.category}
+                  {event.meetingUrl && (
+                    <>
+                      {" · "}
+                      <a href={event.meetingUrl} target="_blank" rel="noreferrer">
+                        Join online
+                      </a>
+                    </>
+                  )}
                 </small>
                 <p>{event.description}</p>
               </div>

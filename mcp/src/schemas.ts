@@ -13,7 +13,7 @@ export const EventSchema = z.looseObject({
   capacity: z.number().int().positive(),
   rsvpCount: z.number().int().nonnegative(),
   availableSpots: z.number().int().nonnegative(),
-  meetingUrl: z.url().optional(),
+  meetingUrl: z.url().nullable().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
   localTime: z
