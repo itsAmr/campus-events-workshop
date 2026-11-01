@@ -48,6 +48,8 @@ Check your design. Each test is one rule:
 npm run check:0
 ```
 
+Read the list of ✓ and × at the top: each × is a rule your table doesn't enforce yet, with a hint underneath. Everything after that list is detail for when the hint isn't enough, and the `npm error` lines at the end only mean "a test failed".
+
 Then rebuild your local database so it has the new table:
 
 ```bash

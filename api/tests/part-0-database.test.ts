@@ -76,7 +76,10 @@ describe("Part 0: the rsvps table", () => {
 
   it("removes an event's RSVPs when the event is deleted", () => {
     addRsvp(eventId, "martlet@mcgill.ca");
-    db.prepare("DELETE FROM events WHERE id = ?").run(eventId);
+    expect(
+      () => db.prepare("DELETE FROM events WHERE id = ?").run(eventId),
+      "Deleting an event should also delete its RSVPs. Look up ON DELETE CASCADE",
+    ).not.toThrow();
     expect(countRsvps(eventId)).toBe(0);
   });
 });
