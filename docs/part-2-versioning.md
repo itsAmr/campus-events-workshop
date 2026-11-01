@@ -31,6 +31,8 @@ In v1, `location` is a string and an online URL may appear separately as `meetin
 
 That shape change would break a v1 client, so it needs a new representation version. Database rows and business rules do not need versions.
 
+Compare that with the database change. `002_online_events.sql` is a new migration file rather than an edit to `001_init.sql`, because databases that already ran 001 would never see an edit. It adds an optional column, which no existing query or v1 response notices. The schema changed safely; only the response shape needs a new version.
+
 Compare the same seeded event:
 
 ```bash

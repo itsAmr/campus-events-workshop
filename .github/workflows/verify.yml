@@ -43,6 +43,10 @@ jobs:
         if: github.ref_name == 'solution'
         run: npm test
 
+      - name: Test the completed database checkpoint
+        if: github.ref_name == 'checkpoint/0-database'
+        run: npm test --workspace api -- schema
+
       - name: Test the completed REST and versioning checkpoint
         if: github.ref_name == 'checkpoint/2-versioning'
         run: npm test --workspace api

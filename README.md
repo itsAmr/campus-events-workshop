@@ -1,6 +1,6 @@
 # Build Your Own API and MCP Server
 
-A two-hour, hands-on workshop co-hosted by Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS) on Friday, November 6, 2026. You will build a campus-events REST API, version it, expose it through a separate Model Context Protocol (MCP) server, and use those tools from a built-in Gemini chat.
+A two-hour, hands-on workshop co-hosted by Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS) on Friday, November 6, 2026. You will design a database for campus events, build a REST API on it, version the API, expose it through a separate Model Context Protocol (MCP) server, and use those tools from a built-in Gemini chat.
 
 ## What you will build
 
@@ -117,6 +117,7 @@ By the end, you can:
 
 ## Workshop parts
 
+0. [Part 0 — Design the database](docs/part-0-database.md)
 1. [Part 1 — Build the REST API](docs/part-1-rest.md)
 2. [Part 2 — Version the API](docs/part-2-versioning.md)
 3. [Part 3 — Wrap it with MCP](docs/part-3-mcp.md)
@@ -146,7 +147,8 @@ git branch --all
 The workshop branches are:
 
 - `main` — starter skeleton
-- `checkpoint/1-rest` — completed REST and persistence work
+- `checkpoint/0-database` — completed database schema
+- `checkpoint/1-rest` — completed database and REST work
 - `checkpoint/2-versioning` — completed REST and API versioning work
 - `solution` — complete workshop solution
 
@@ -155,6 +157,7 @@ To move to a checkpoint, first save or discard your current exercise edits, then
 ```bash
 git switch checkpoint/1-rest
 npm install
+npm run db:reset
 npm run dev
 ```
 
@@ -166,6 +169,7 @@ npm run dev
 - **Address already in use / "port … is available" fails:** `npm run dev` checks ports 5173, 3001, 3002, and 3003 before starting. Usually an earlier `npm run dev` is still running in another terminal; stop it with Ctrl+C. To find the program, run `lsof -i :3002` on macOS/Linux or `netstat -ano | findstr :3002` on Windows. Avoid changing one service's port without updating its clients.
 - **Gemini authentication error:** check that `.env` exists at the expected root, contains no quotes copied from a web page, and was never committed. Restart `npm run dev` after editing it.
 - **Rate limit or model error:** wait briefly, use the facilitator fallback procedure, and keep the configured model default rather than guessing a model name.
+- **`no such table: rsvps`:** the database was created before the `rsvps` table existed. Finish Part 0 or switch to a checkpoint, then run `npm run db:reset`.
 - **SQLite busy/locked:** stop duplicate dev processes, then restart one `npm run dev`. Do not delete the database unless the facilitator explicitly says the data is disposable.
 - **Workspace package not found:** run `npm install` at the repository root, not inside an individual workspace.
 
