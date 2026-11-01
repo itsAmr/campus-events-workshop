@@ -1,141 +1,86 @@
-# Part 2 — Version the API
+# Part 2 — Design responses that can grow
 
-**Target time:** 20 minutes  
-**Goal:** evolve `/api/v1` to `/api/v2` without duplicating event logic or surprising existing clients.
+**Time:** 20 minutes  
+**Goal:** change what the API sends without breaking anyone who already uses it.
 
-> Path check: this worksheet expects the paths below, but they may need verification against the final starter scaffold. The worked change makes `location` a structured object in v2.
+## Your response is a promise
 
-## Why version?
+The moment a client reads your JSON, every field name, type, and format becomes something their code depends on. The web app in `web/src/api.ts` expects `location` to be a string. The MCP server you'll meet in Part 3 expects timestamps like `2026-11-06T17:00:00.000Z`.
 
-URLs are contracts. A web app and an MCP server can upgrade at different times, so incompatible API changes need an explicit boundary. Version routing, not the database schema or service layer.
+**Hyrum's law:** with enough users, every behavior they can observe will be depended on by somebody, whether you promised it or not.
 
-## TODO 1: identify the breaking change
+A real example from this repo: nobody documented the timestamp format, but `mcp/src/schemas.ts` checks it. That's why Part 0 asked you to copy the `created_at` line. A database default of `CURRENT_TIMESTAMP` gives `2026-11-06 17:00:00`, which looks harmless and would have broken the MCP server's RSVP tool.
 
-Expected paths:
+## Discuss: breaking or not?
 
-- `api/src/app.ts` — mounts v1 and v2 routers
-- `api/src/events/mappers.ts` — maps one domain row to each API version
-- `api/src/events/service.ts` — version-independent operations
-- `api/src/events/repository.ts` — version-independent persistence
-- `api/migrations/002_online_events.sql` — adds optional online-event data
+Your facilitator will run a quick vote. Would each change break an existing client?
 
-In v1, `location` is a string and an online URL may appear separately as `meetingUrl`. In v2, `location` becomes:
+1. Add a new optional field, `imageUrl`.
+2. Rename `startsAt` to `startTime`.
+3. Change `location` from a string to an object.
+4. Return events newest first instead of soonest first.
+5. Change timestamps from `2026-11-06T17:00:00.000Z` to `2026-11-06 17:00:00`.
+6. Add a new category, `Gaming`.
+
+<details>
+<summary>Answers</summary>
+
+1. Usually safe. Adding is the safest change there is, though a client that rejects unknown fields would still break.
+2. Breaking. Every client reading `startsAt` now gets nothing.
+3. Breaking. Code that prints `location` now prints `[object Object]` or crashes.
+4. Breaking for someone. The order was never promised, but a client showing "the next event" takes the first item. Hyrum's law.
+5. Breaking. The meaning is the same, but parsers expect the exact format. Hyrum's law again.
+6. Usually safe, unless a client has a hardcoded list of categories.
+
+</details>
+
+## The change we need
+
+Online events need a meeting link. In v1, `location` is a string and online events get an extra `meetingUrl` field. A better design groups them:
 
 ```json
-{
-  "name": "Online",
-  "online": true,
-  "url": "https://…"
-}
+"location": { "name": "Online", "online": true, "url": "https://events.mcgill.ca/meet/6" }
 ```
 
-That shape change would break a v1 client, so it needs a new representation version. Database rows and business rules do not need versions.
+That's change 3 from the vote: breaking. So v1 stays exactly as it is, and the new shape ships as **v2** at `/api/v2`. Old clients keep working, and new clients opt in when they're ready.
 
-Compare that with the database change. `002_online_events.sql` is a new migration file rather than an edit to `001_init.sql`, because databases that already ran 001 would never see an edit. It adds an optional column, which no existing query or v1 response notices. The schema changed safely; only the response shape needs a new version.
+Look at what doesn't change: the database, `store.ts`, and every rule. Only the response is versioned. On the database side, `api/migrations/002_online_events.sql` added the `meeting_url` column as a new migration file. Adding an optional column changes nothing for existing queries, so the database could evolve without a version.
 
-Compare the same seeded event:
+## 2.1 Build the v2 response
+
+Open `api/src/events/responses.ts` and find `TODO(part-2.1)`. `toV1Event` is right above it as an example. Run `npm run check:2`: the three `2.1` tests should pass before you move on.
+
+## 2.2 Serve v2
+
+Add the two v2 routes in `api/src/app.ts`. Compare an online event in both versions:
+
+- <http://localhost:3001/api/v1/events/6>
+- <http://localhost:3001/api/v2/events/6>
+
+## See why v1 has to stay
+
+In `web/src/api.ts`, change `API_BASE` to `"/api/v2"` and look at the web app: it crashes, because it tries to show the `location` object as text. That's the client you would have broken by changing v1 in place. Change it back.
+
+v1 also now tells clients it's on its way out. Open your browser's developer tools, go to the Network tab, and reload a v1 URL: the response has `Deprecation: true` and a `Sunset` date.
+
+## Decisions that made v2 cheap
+
+These were made on day one, before anyone needed them:
+
+- **Responses are wrapped in `{ data: ... }`.** Adding `meta` or paging info later is just a new field next to `data`.
+- **The version is in the URL from the start.** `/api/v1` looked unnecessary with one version; now v2 is just another prefix.
+- **Errors have machine-readable codes.** Clients check `ALREADY_RSVPED`, not the wording of a message.
+- **Response functions are separate from database rows.** Renaming a column changes `responses.ts`, not every client.
+
+And the one v1 got wrong: `location` was a plain string. When something is likely to grow more details, make it an object from the start.
+
+## Done when
 
 ```bash
-curl -s "http://localhost:3001/api/v1/events?q=AI%20Ethics"
-curl -s "http://localhost:3001/api/v2/events?q=AI%20Ethics"
+npm run check:2
 ```
 
-Acceptance checks:
+- [ ] Every Part 2 test passes.
+- [ ] v1 still returns `location` as a string; v2 returns the object.
 
-- [ ] You can describe exactly which response field is incompatible.
-- [ ] The database and service layer remain shared.
-- [ ] Each version has an explicit response mapper.
-
-## TODO 2: mount the v2 read routes
-
-Implement and mount:
-
-- `GET /api/v2/events`
-- `GET /api/v2/events/:id`
-
-```bash
-curl -i http://localhost:3001/api/v2/events
-curl -i "http://localhost:3001/api/v2/events?category=Technology"
-curl -i http://localhost:3001/api/v2/events/1
-```
-
-Keep the Part 1 write contract on v1 for this exercise:
-
-```bash
-curl -i \
-  -X POST http://localhost:3001/api/v1/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "API Design Study Group",
-    "description": "Practice stable contracts and useful errors.",
-    "category": "Technology",
-    "location": "McConnell 103",
-    "startsAt": "2026-10-31T18:00:00.000Z",
-    "endsAt": "2026-10-31T19:00:00.000Z",
-    "capacity": 24
-  }'
-```
-
-Acceptance checks:
-
-- [ ] v1 list, detail, and create routes preserve Part 1 behavior.
-- [ ] v2 list and detail return structured `location` objects.
-- [ ] Both versions call the same service methods.
-- [ ] Unknown versioned routes return JSON `404`.
-- [ ] Errors do not expose stack traces or SQLite details.
-
-## TODO 3: publish the v1 lifecycle
-
-Expected path:
-
-- `api/src/app.ts`
-
-Add the workshop's `Deprecation` and `Sunset` headers to v1 responses. Keep v1 behavior working; a deprecation signal is not permission to break it.
-
-Compare:
-
-```bash
-curl -i http://localhost:3001/api/v1/events
-curl -i http://localhost:3001/api/v2/events
-```
-
-Acceptance checks:
-
-- [ ] v1 includes `Deprecation: true`.
-- [ ] v1 includes the configured HTTP-date `Sunset` value.
-- [ ] v2 does not advertise itself as deprecated.
-- [ ] The retirement date is documented and can be changed in one place.
-
-## TODO 4: prove clients can migrate independently
-
-Expected paths:
-
-- `web/src/api.ts`
-- `api/tests/app.test.ts`
-
-The web app stays on v1 during this exercise. Its `CampusEvent` type in `web/src/api.ts` is the v1 contract: try switching `API_BASE` to `/api/v2` and watch the page break on the new `location` object, then switch it back. That is exactly the client you would break by changing v1 in place. Add API tests that compare both representations of the same event.
-
-Acceptance checks:
-
-- [ ] API tests exercise both `/api/v1` and `/api/v2`.
-- [ ] A test proves v1 `location` is a string.
-- [ ] A test proves v2 `location` is an object.
-- [ ] The React app continues to work on v1 while v2 is introduced.
-
-## Stretch: additive evolution
-
-Design a v2 create endpoint. Decide whether it accepts the v2 location object, the v1 fields, or both. Write the contract before implementing anything.
-
-## Final acceptance
-
-```bash
-npm test --workspace api
-npm run doctor
-```
-
-- [ ] v1 remains usable and advertises its lifecycle.
-- [ ] v2 returns the documented location shape.
-- [ ] No SQL or business logic was duplicated to create v2.
-- [ ] Version-specific code is limited to HTTP routing and mapping.
-
-If you are blocked, save your work and switch to `checkpoint/2-versioning`.
+Stuck? Run `git stash`, then `git switch checkpoint/2-versioning` and `npm run db:reset`.
