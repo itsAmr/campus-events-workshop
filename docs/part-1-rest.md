@@ -48,7 +48,7 @@ Expected paths:
 - `api/src/events/service.ts` — event business rules
 - `api/src/events/schemas.ts` — request validation
 
-Implement the list route. Validate the query string, then pass the text, category, and date range filters to the service. The SQL already lives in `repository.ts`, and it passes every value as a `?` parameter instead of pasting user input into the query. Your facilitator will show what goes wrong without that.
+Implement the list route. Validate the query string, then pass the text, category, and date range filters to the service. The SQL already lives in `repository.ts`.
 
 Try it:
 
