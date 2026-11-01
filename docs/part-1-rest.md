@@ -1,6 +1,6 @@
 # Part 1 — Build the REST API
 
-**Target time:** 30 minutes  
+**Target time:** 25 minutes  
 **Goal:** serve campus events from SQLite through a validated Express API.
 
 > Path check: this worksheet expects the paths below. The final starter scaffold may rename files; use `npm run doctor`, the workspace `package.json` files, and facilitator instructions to verify them before editing.
@@ -17,20 +17,13 @@ You will implement:
 
 An event has an ID, title, description, category, location, start time, and end time. Use the starter's schema and field names as the source of truth.
 
-## TODO 1: inspect the seed data
+## TODO 1: start the API
 
-Expected paths:
+You designed the `rsvps` table in Part 0. These files put the database to work:
 
 - `api/src/db/database.ts` — opens SQLite and applies migrations
 - `api/src/db/seed.ts` — creates relative-date workshop data
-- `api/migrations/001_init.sql` — initial schema
-- `api/data/campus-events.db` — generated local database; do not hand-edit it
-
-Find the events table and answer:
-
-1. Which fields are required?
-2. Are timestamps stored in UTC?
-3. Which code owns database initialization?
+- `api/data/campus-events.db` — generated local database; use `npm run db:shell` instead of editing it
 
 Start the API from the repository root:
 
@@ -55,7 +48,7 @@ Expected paths:
 - `api/src/events/service.ts` — event business rules
 - `api/src/events/schemas.ts` — request validation
 
-Implement the list route using parameterized SQLite queries. Support the starter's date range and category filters. Do not build SQL by concatenating user input.
+Implement the list route. Validate the query string, then pass the text, category, and date range filters to the service. The SQL already lives in `repository.ts`, and it passes every value as a `?` parameter instead of pasting user input into the query. Your facilitator will show what goes wrong without that.
 
 Try it:
 
@@ -72,7 +65,7 @@ Acceptance checks:
 - [ ] Results are ordered by start time.
 - [ ] A valid date range returns only matching events.
 - [ ] Invalid date or category input returns a `400`, not a server error.
-- [ ] SQL values are passed as parameters.
+- [ ] The route never builds SQL itself.
 
 ## TODO 3: fetch one event
 

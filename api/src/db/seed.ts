@@ -72,14 +72,20 @@ export function seedDatabase(db: CampusDatabase): void {
       );
     }
 
-    const fullEvent = db
-      .prepare("SELECT id FROM events WHERE title = ?")
-      .get("Tiny Climate Action Workshop") as { id: number };
-    const insertRsvp = db.prepare(
-      "INSERT INTO rsvps (event_id, email) VALUES (?, ?)",
-    );
-    insertRsvp.run(fullEvent.id, "martlet@mcgill.ca");
-    insertRsvp.run(fullEvent.id, "stinger@concordia.ca");
+    // The starter has no rsvps table until students design it in Part 0.
+    const hasRsvps = db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'rsvps'")
+      .get();
+    if (hasRsvps) {
+      const fullEvent = db
+        .prepare("SELECT id FROM events WHERE title = ?")
+        .get("Tiny Climate Action Workshop") as { id: number };
+      const insertRsvp = db.prepare(
+        "INSERT INTO rsvps (event_id, email) VALUES (?, ?)",
+      );
+      insertRsvp.run(fullEvent.id, "martlet@mcgill.ca");
+      insertRsvp.run(fullEvent.id, "stinger@concordia.ca");
+    }
     db.exec("COMMIT");
   } catch (error) {
     db.exec("ROLLBACK");
