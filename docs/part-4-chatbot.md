@@ -32,6 +32,7 @@ Then ask the chat: "Tell me about Free Pizza Night." The model should quote it a
 
 ## If something goes wrong
 
+- **No events found "this week":** run `npm run db:reset` for fresh sample dates. On a Saturday or Sunday, ask about "the next 7 days" instead, since the week ends on Sunday.
 - **"high demand" (HTTP 503):** Google's servers are busy. Wait a moment and ask again.
 - **Rate limit (HTTP 429):** the free key allows about 15 requests a minute, and each message uses 2 to 4. Wait a minute.
 - **The chat says a tool isn't implemented:** a TODO is left. Run `npm run todos`.
