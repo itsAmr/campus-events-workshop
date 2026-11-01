@@ -44,51 +44,51 @@ export function createApp(options: { db?: CampusDatabase } = {}) {
   });
 
   // TODO(part-1.2): get one event.
-  //   1. Turn the :id from the URL into a number with parseId(request.params.id).
-  //   2. Ask the database with getEvent(db, id). It throws a 404 for you when the
-  //      event doesn't exist.
-  //   3. Reply with { data: toEvent(event) }.
+  //   Same three steps as 1.1. The id comes from the URL as text, in
+  //   request.params.id; turn it into a number with parseId. getEvent in
+  //   store.ts finds the event, and replies 404 for you when there isn't one.
   // Try it: http://localhost:3001/api/v1/events/1, then /api/v1/events/999
   app.get("/api/v1/events/:id", (request, response) => {
     notImplemented("1.2");
   });
 
   // TODO(part-1.3): create an event.
-  //   1. Check the body with newEvent.parse(request.body). Bad input becomes a
-  //      400 with a message for each field.
-  //   2. Save it with createEvent(db, input).
-  //   3. Reply with status 201 (Created): response.status(201).json({ data: toEvent(event) });
+  //   Same three steps, but the new event comes in request.body, and the schema
+  //   that checks it is newEvent. Save it with createEvent from store.ts.
+  //   A successful create replies with status 201 (Created) instead of the
+  //   default 200: response.status(201).json(...)
   // Try it: click "Create event" in the web app, once with a field left empty.
   app.post("/api/v1/events", (request, response) => {
     notImplemented("1.3");
   });
 
   // TODO(part-1.4): RSVP to an event.
-  //   1. Get the email from the body: const { email } = rsvpRequest.parse(request.body);
-  //   2. Save it with rsvp(db, eventId, email). It throws a 409 when this email
-  //      already RSVP'd or the event is full.
-  //   3. Reply with status 201 and { data: toRsvp(created) }.
+  //   The event id is in the URL, like 1.2. The email is in the body: check it
+  //   with rsvpRequest, and pull the email out with  const { email } = ...
+  //   rsvp in store.ts saves it, and replies 409 for you when this email already
+  //   RSVP'd or the event is full. Reply 201 with the RSVP built by toRsvp.
   // Try it: click RSVP in the web app, then try the full "Tiny Climate Action Workshop".
   app.post("/api/v1/events/:id/rsvps", (request, response) => {
     notImplemented("1.4");
   });
 
   // TODO(part-1.5): Stretch: update an event.
-  //   Use updateEvent(db, id, eventChanges.parse(request.body)) and reply with
-  //   { data: toEvent(event) }.
+  //   Like 1.2, plus a body of changed fields checked with eventChanges.
+  //   Save them with updateEvent.
   app.patch("/api/v1/events/:id", (request, response) => {
     notImplemented("1.5");
   });
 
   // TODO(part-1.6): Stretch: delete an event.
-  //   Use deleteEvent(db, id), then reply 204 (No Content): response.status(204).end();
+  //   Use deleteEvent. There's nothing to send back, so reply 204 (No Content)
+  //   with an empty body: response.status(204).end()
   app.delete("/api/v1/events/:id", (request, response) => {
     notImplemented("1.6");
   });
 
   // TODO(part-1.7): Stretch: cancel an RSVP.
-  //   Check the email with rsvpRequest.parse({ email: request.params.email }),
-  //   use cancelRsvp(db, id, email), then reply 204.
+  //   This time the email is in the URL, in request.params.email. Check it with
+  //   rsvpRequest like 1.4, cancel with cancelRsvp, then reply 204 like 1.6.
   app.delete("/api/v1/events/:id/rsvps/:email", (request, response) => {
     notImplemented("1.7");
   });
