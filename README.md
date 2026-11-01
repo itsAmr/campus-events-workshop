@@ -36,7 +36,7 @@ Open <http://localhost:5173>. You'll see an error asking you to finish a TODO: t
 | --- | --- | --- |
 | [0. Design the database](docs/part-0-database.md) | Design the RSVP table and its rules | `npm run check:0` |
 | [1. Build the REST API](docs/part-1-rest.md) | Serve events as JSON | `npm run check:1` |
-| [2. Design responses that can grow](docs/part-2-versioning.md) | Ship v2 without breaking v1 | `npm run check:2` |
+| [2. Design responses that can grow](docs/part-2-responses.md) | Change the API without breaking its users | `npm run check:2` |
 | [3. Wrap the API with MCP](docs/part-3-mcp.md) | Give a chatbot tools that call your API | `npm run check:3` |
 | [4. Try the whole thing](docs/part-4-chatbot.md) | Search, RSVP, and create events by chat | |
 | [Next steps](docs/next-steps.md) | Keep building | |
@@ -86,7 +86,7 @@ npm run db:reset
 npm run dev
 ```
 
-The branches are `main` (start), `checkpoint/0-database`, `checkpoint/1-rest`, `checkpoint/2-versioning`, and `solution`.
+The branches are `main` (start), `checkpoint/0-database`, `checkpoint/1-rest`, `checkpoint/2-responses`, and `solution`.
 
 ## Troubleshooting
 

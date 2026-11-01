@@ -33,7 +33,7 @@ SQLite is a single file on your laptop. A hosted Postgres database lets several 
 ## Grow the API
 
 - **Paging:** `?limit=20&cursor=...`, with paging details next to `data` in the response. The `{ data }` envelope already leaves room.
-- **A v2 create route** that accepts the new `location` object. Decide what happens to v1 clients that still send a string.
+- **Ship the v2 from Part 2,** with `location` as an object, while v1 keeps working. Add `Deprecation` and `Sunset` headers to v1, then move the web app to v2.
 - **Search** across more fields, or by distance from campus.
 
 ## Deploy it
