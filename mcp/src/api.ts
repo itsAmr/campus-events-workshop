@@ -17,6 +17,11 @@ export class CampusApiError extends Error {
   }
 }
 
+// Unfinished starter TODOs call this, so the model can tell the user which TODO is left.
+export function notImplemented(todo: string): never {
+  throw new CampusApiError("NOT_IMPLEMENTED", `Finish TODO(part-${todo}) in mcp/src/server.ts`);
+}
+
 export function createCampusApi(options: CampusApiOptions = {}) {
   const baseUrl = options.baseUrl ?? "http://127.0.0.1:3001";
   const fetchImpl = options.fetch ?? globalThis.fetch;

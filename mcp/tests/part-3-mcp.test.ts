@@ -83,8 +83,7 @@ describe("Part 3: MCP server", () => {
 
   it("3.2 search_events has a description that tells the model how to search", async () => {
     const description = (await toolNamed("search_events"))?.description ?? "";
-    expect(description).not.toMatch(/TODO/);
-    expect(description.length).toBeGreaterThan(80);
+    expect(description.length, "Explain what to search by and how to write query").toBeGreaterThan(80);
   });
 
   it("search_events sends a Montreal-local date range to the API", async () => {

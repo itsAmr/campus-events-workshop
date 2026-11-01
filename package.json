@@ -15,7 +15,11 @@
   "scripts": {
     "dev": "node scripts/doctor.mjs --quick && node --env-file-if-exists=.env ./node_modules/concurrently/dist/bin/concurrently.js --kill-others-on-fail --names web,api,mcp,chat --prefix-colors green,blue,magenta,cyan \"npm run dev --workspace web\" \"npm run dev --workspace api\" \"npm run dev --workspace mcp\" \"npm run dev --workspace chat\"",
     "test": "npm run test --workspaces --if-present",
-    "test:solution": "npm run test:solution --workspaces --if-present",
+    "check:0": "npm test --workspace api -- part-0 --reporter=verbose",
+    "check:1": "npm test --workspace api -- part-1-rest --reporter=verbose",
+    "check:2": "npm test --workspace api -- part-2 --reporter=verbose",
+    "check:3": "npm test --workspace mcp -- part-3 --reporter=verbose",
+    "todos": "node scripts/todos.mjs",
     "db:reset": "npm run db:reset --workspace api",
     "db:shell": "npm run db:shell --workspace api",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs",

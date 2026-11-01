@@ -32,6 +32,11 @@ export class FieldError extends ApiError {
   }
 }
 
+// Unfinished starter TODOs call this, so the browser shows which TODO to open.
+export function notImplemented(todo: string, file = "api/src/app.ts"): never {
+  throw new ApiError(501, "NOT_IMPLEMENTED", `Finish TODO(part-${todo})`, { sourcePath: file });
+}
+
 export const unknownRoute: RequestHandler = (_request, response) => {
   response.status(404).json({
     error: { code: "NOT_FOUND", message: "Route not found" },
