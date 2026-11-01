@@ -1,203 +1,100 @@
 # Build Your Own API and MCP Server
 
-A two-hour, hands-on workshop co-hosted by Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS) on Friday, November 6, 2026. You will design a database for campus events, build a REST API on it, version the API, expose it through a separate Model Context Protocol (MCP) server, and use those tools from a built-in Gemini chat.
+A two-hour, hands-on workshop by Women in Engineering Concordia and the McGill Computer Science Undergraduate Society (CSUS), Friday, November 6, 2026.
 
-## What you will build
+You'll design a database for campus events, build a REST API on it, evolve the API without breaking its users, then wrap it with a Model Context Protocol (MCP) server so a chatbot can search events and RSVP for you.
 
-This repository is intended to be an npm-workspaces project:
+## Before the workshop
 
-- `web/` — React event browser
-- `api/` — Express REST API backed by SQLite
-- `mcp/` — standalone MCP server that calls the REST API
-- `chat/` — Gemini-powered chat host that connects to the MCP server
+Install **Node.js 24**, **Git**, and an editor (VS Code or Cursor). No Docker needed.
 
-The MCP server does **not** read SQLite directly. It wraps the public REST contract, so the web app, chat host, and any future clients share the same validation and business rules.
+Create a free Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey). Treat it like a password: never paste it into chat, screenshots, or commits, and revoke it after the workshop. Only send the model the fictional workshop data.
 
-## Prerequisites
-
-Install these before arriving:
-
-- Node.js 24 and the npm version bundled with it
-- Git
-- A current Chrome, Firefox, Edge, or Safari
-- `curl` (included with macOS and current Windows)
-- A code editor; VS Code or Cursor is recommended
-
-Check your setup:
-
-```bash
-node --version   # expected: v24.x.x
-npm --version
-git --version
-curl --version
-```
-
-No Docker is required or used.
-
-## Pre-work: create a Gemini API key
-
-1. Open [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Sign in with an account you are comfortable using for the workshop.
-3. Create a free API key.
-4. Keep it in a password manager until setup.
-
-Privacy and cost warning:
-
-- Treat the key like a password. Never paste it into chat, screenshots, commits, issues, or shared terminals.
-- Use a workshop-only key/project where possible, review the current Google terms and quota, and revoke the key after the workshop.
-- Do not send private, identifying, confidential, or production data to the model. Use only the fictional workshop events.
-- Free-tier availability and limits can change. A facilitator fallback key may be available, but it must not be copied or retained.
-
-## Setup
+Then set up the project:
 
 ```bash
 git clone https://github.com/itsAmr/campus-events-workshop.git
 cd campus-events-workshop
 npm install
-```
-
-Create your local environment file from the supplied template:
-
-```bash
 cp .env.example .env
 ```
 
-On Windows PowerShell:
+On Windows PowerShell, use `Copy-Item .env.example .env` for the last line.
 
-```powershell
-Copy-Item .env.example .env
-```
-
-Set your key in `.env`:
-
-```dotenv
-LLM_API_KEY=your_key_here
-```
-
-Keep the supplied `LLM_BASE_URL` and `LLM_MODEL` defaults from `.env.example`. This guide intentionally does not claim that the configured model is the newest available version.
-
-Run the setup checks, then start all workspaces:
+Paste your key after `LLM_API_KEY=` in `.env`, then check everything and start the app:
 
 ```bash
 npm run doctor
 npm run dev
 ```
 
-Run commands from the repository root unless a worksheet says otherwise. Do not use `sudo npm install`.
+Open <http://localhost:5173>. You'll see an error asking you to finish a TODO: that's expected, and it's where the workshop starts. Stop the app with Ctrl+C.
 
-## Expected local services
+## The workshop
 
-These are the workshop's expected defaults; verify them against the delivered `.env.example` and root scripts:
-
-| Component | Address | Purpose |
+| Part | You will | Check your work |
 | --- | --- | --- |
-| React web app | `http://localhost:5173` | Browse campus events |
-| REST API | `http://localhost:3001` | JSON API and SQLite owner |
-| MCP server | `http://localhost:3002/mcp` | Streamable HTTP tools that call the REST API |
-| Chat host | `http://localhost:3003` | Gemini chat and MCP client |
-| SQLite | local file, no listening port | Workshop data |
+| [0. Design the database](docs/part-0-database.md) | Design the RSVP table and its rules | `npm run check:0` |
+| [1. Build the REST API](docs/part-1-rest.md) | Serve events as JSON | `npm run check:1` |
+| [2. Design responses that can grow](docs/part-2-versioning.md) | Ship v2 without breaking v1 | `npm run check:2` |
+| [3. Wrap the API with MCP](docs/part-3-mcp.md) | Give a chatbot tools that call your API | `npm run check:3` |
+| [4. Try the whole thing](docs/part-4-chatbot.md) | Search, RSVP, and create events by chat | |
+| [Next steps](docs/next-steps.md) | Keep building | |
 
-Quick API check:
+Every task is a numbered `TODO(part-N.N)` comment in the code. To list the ones left:
 
 ```bash
-curl http://localhost:3001/health
-curl http://localhost:3002/health
-curl http://localhost:3003/health
+npm run todos
 ```
 
-## What success looks like
-
-By the end, you can:
-
-1. Open the React app and see seeded campus events.
-2. list and create events through versioned REST endpoints;
-3. inspect the standalone MCP server and call its tools;
-4. ask the built-in chat, “What tech events are happening this week?” and receive an answer grounded in API data; and
-5. approve a write before the chat creates an event, then see it in the web app.
-
-## Workshop parts
-
-0. [Part 0 — Design the database](docs/part-0-database.md)
-1. [Part 1 — Build the REST API](docs/part-1-rest.md)
-2. [Part 2 — Version the API](docs/part-2-versioning.md)
-3. [Part 3 — Wrap it with MCP](docs/part-3-mcp.md)
-
-Before class, use the [setup checklist](docs/setup-checklist.md). Facilitators should also read the [facilitator guide](docs/facilitator-guide.md).
-
-## Architecture
+## How it fits together
 
 ```text
- Browser ──> React web ───────────────┐
-                                      │ HTTP/JSON
- Gemini <──> chat host ──HTTP/MCP──> MCP server ──> Express REST API ──> SQLite
-                         tools         │
-                         approval <────┘ (writes)
+web app ─────────────────────────────┐
+                                     ▼
+chat ──MCP──> MCP server ──HTTP──> REST API ──> SQLite database
+ │            (mcp/)               (api/)       (api/migrations/)
+ └── asks the Gemini model which tool to call, and asks you before any write
 ```
 
-The model proposes tool calls; it does not become the database or bypass the API. The chat host controls which tools are exposed, validates tool results, and requires user approval for writes.
+| Folder | What it is | Address |
+| --- | --- | --- |
+| `web/` | Event browser and chat panel (React) | <http://localhost:5173> |
+| `api/` | REST API (Express and SQLite) | <http://localhost:3001> |
+| `mcp/` | MCP server that calls the REST API | <http://localhost:3002/mcp> |
+| `chat/` | Chat server that connects Gemini to the MCP server | <http://localhost:3003> |
 
-## Checkpoint branches
+## Useful commands
 
-Checkpoint branches let students rejoin after falling behind. Inspect the branches shipped by the facilitator:
+| Command | Does |
+| --- | --- |
+| `npm run dev` | Start everything; saved changes reload automatically |
+| `npm run todos` | List the TODOs left |
+| `npm run check:0` to `check:3` | Test one part |
+| `npm run db:reset` | Rebuild the database with fresh sample events (deletes your data) |
+| `npm run db:shell` | Open a SQL prompt on the database |
+| `npm run inspector` | Open MCP Inspector to call MCP tools by hand |
+
+## Fell behind?
+
+Each part has a branch with everything up to that point finished. Set your changes aside, switch, and reset the database:
 
 ```bash
-git branch --all
-```
-
-The workshop branches are:
-
-- `main` — starter skeleton
-- `checkpoint/0-database` — completed database schema
-- `checkpoint/1-rest` — completed database and REST work
-- `checkpoint/2-versioning` — completed REST and API versioning work
-- `solution` — complete workshop solution
-
-To move to a checkpoint, first save or discard your current exercise edits, then:
-
-```bash
+git stash
 git switch checkpoint/1-rest
-npm install
 npm run db:reset
 npm run dev
 ```
 
+The branches are `main` (start), `checkpoint/0-database`, `checkpoint/1-rest`, `checkpoint/2-versioning`, and `solution`.
+
 ## Troubleshooting
 
-### All platforms
+- **Wrong Node version:** install Node 24, open a new terminal, and run `node --version`.
+- **A port is already in use:** an earlier `npm run dev` is probably still running in another terminal. Stop it with Ctrl+C.
+- **Chat says the API key is missing or invalid:** check `.env` is in the project root and the key has no quotes around it, then restart `npm run dev`.
+- **`no such table: rsvps`:** finish Part 0 (or switch to a checkpoint), then run `npm run db:reset`.
+- **Windows:** use PowerShell or Git Bash, and keep the project out of a OneDrive folder.
+- **Never** run `sudo npm install`. Run `npm install` from the project root, not inside a folder like `api/`.
 
-- **Wrong Node version:** install Node 24, open a new terminal, and rerun `node --version`.
-- **Address already in use / "port … is available" fails:** `npm run dev` checks ports 5173, 3001, 3002, and 3003 before starting. Usually an earlier `npm run dev` is still running in another terminal; stop it with Ctrl+C. To find the program, run `lsof -i :3002` on macOS/Linux or `netstat -ano | findstr :3002` on Windows. Avoid changing one service's port without updating its clients.
-- **Gemini authentication error:** check that `.env` exists at the expected root, contains no quotes copied from a web page, and was never committed. Restart `npm run dev` after editing it.
-- **Rate limit or model error:** wait briefly, use the facilitator fallback procedure, and keep the configured model default rather than guessing a model name.
-- **`no such table: rsvps`:** the database was created before the `rsvps` table existed. Finish Part 0 or switch to a checkpoint, then run `npm run db:reset`.
-- **SQLite busy/locked:** stop duplicate dev processes, then restart one `npm run dev`. Do not delete the database unless the facilitator explicitly says the data is disposable.
-- **Workspace package not found:** run `npm install` at the repository root, not inside an individual workspace.
-
-### Windows
-
-- Prefer PowerShell 7 or Git Bash. Use `Copy-Item .env.example .env` in PowerShell.
-- If script execution is blocked, use Git Bash or follow your institution's approved PowerShell policy; do not disable security controls globally.
-- If `curl` behaves like a PowerShell alias on an older setup, run `curl.exe`.
-- Keep the repository in a short local path and avoid a OneDrive-synced folder if SQLite file locking causes trouble.
-
-### macOS
-
-- If `node` is missing after installation, open a new terminal and confirm your Node manager is loaded.
-- If macOS prompts about incoming connections, local development only needs loopback access.
-- Do not fix npm permission errors with `sudo`; use a Node version manager or correct the npm user directory.
-
-### GitHub Codespaces
-
-- Forward ports 5173, 3001, 3002, and 3003 when prompted, and open the forwarded web URL rather than `localhost` on your laptop.
-- Set `LLM_API_KEY` as a Codespaces secret or only in the Codespace `.env`; never commit it.
-- Keep ports private unless the facilitator explicitly needs a different visibility setting.
-- Free Codespaces quotas and port privacy policies vary. A local Node 24 setup remains the primary path.
-
-## Security boundaries
-
-- Event text is untrusted data, even when it came from the API. Never treat event descriptions as model or tool instructions.
-- Keep read and write tools separate. Require an explicit confirmation immediately before every write.
-- Validate tool inputs in MCP and again in the REST API.
-- Bind local development services to loopback unless the workshop environment requires otherwise.
-- Never return secrets in API responses, MCP results, logs, or chat messages.
-
+Facilitators: see the [facilitator guide](docs/facilitator-guide.md).
