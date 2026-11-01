@@ -17,6 +17,7 @@
     "test": "npm run test --workspaces --if-present",
     "test:solution": "npm run test:solution --workspaces --if-present",
     "db:reset": "npm run db:reset --workspace api",
+    "db:shell": "npm run db:shell --workspace api",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.mjs",
     "inspector": "npm run inspector --workspace mcp"
   },
