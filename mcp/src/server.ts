@@ -90,12 +90,11 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
   );
 
   // TODO(part-3.2): finish get_event.
-  //   1. It only reads, so mark it read-only the way list_categories is.
-  //      Without that, the chat plays safe and asks for approval every time
-  //      the model looks an event up.
-  //   2. In the handler, get the event from the REST route you wrote in 1.2
-  //      with api.get, like list_categories does. Return it as
-  //      { event: withLocalTime(event) }, which adds its time in Montreal.
+  //   1. Add  annotations: readOnly,  under outputSchema. Without it, the chat
+  //      plays safe and asks for approval every time the model looks an event up.
+  //   2. In the handler, call the REST route you wrote in 1.2:
+  //        const event = await api.get(`/api/v1/events/${id}`);
+  //      then return { event: withLocalTime(event) };  (it adds the Montreal time)
   // Try it in MCP Inspector: call get_event with id 1.
   server.registerTool(
     "get_event",
@@ -112,9 +111,10 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
   );
 
   // TODO(part-3.3): finish rsvp_to_event.
-  //   Send the email to the REST route you wrote in 1.4 with
-  //   api.post(path, body), then return { rsvp }. It's annotated as a write,
-  //   so the chat asks the user to approve before this code runs.
+  //   Call the REST route you wrote in 1.4:
+  //     const rsvp = await api.post(`/api/v1/events/${eventId}/rsvps`, { email });
+  //   then return { rsvp }. It's annotated as a write, so the chat asks the
+  //   user to approve before this code runs.
   // Try it: ask the chat to RSVP you to an event, then click Allow.
   server.registerTool(
     "rsvp_to_event",
