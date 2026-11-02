@@ -35,11 +35,19 @@ export function toTranscript(messages: WireMessage[]): TranscriptItem[] {
   });
 }
 
+function parseOrText(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 function pretty(raw: string): string {
   try {
     const value = JSON.parse(raw);
-    const shown = value?.structuredContent ?? value;
-    return JSON.stringify(shown, null, 2);
+    const text = value?.content?.find?.((part: { type?: string }) => part.type === "text")?.text;
+    return JSON.stringify(value?.structuredContent ?? (text ? parseOrText(text) : value), null, 2);
   } catch {
     return raw;
   }

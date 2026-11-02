@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/server";
-import { PlanCampusWeekArgsSchema } from "./schemas.js";
+import * as z from "zod/v4";
 
 // Tools are one of three things an MCP server can offer. This file shows the
 // other two, which the workshop chat does not use but MCP Inspector can:
@@ -39,7 +39,10 @@ export function registerExtras(server: McpServer): void {
     {
       title: "Plan a campus week",
       description: "Build a balanced week plan from upcoming campus events and the user's interests.",
-      argsSchema: PlanCampusWeekArgsSchema,
+      argsSchema: {
+        interests: z.string().min(1).optional(),
+        availability: z.string().min(1).optional(),
+      },
     },
     ({ interests, availability }) => ({
       description: "Plan a week of campus events.",

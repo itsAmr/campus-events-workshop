@@ -11,6 +11,7 @@ Your MCP server isn't tied to this workshop's chat. Claude Desktop, Cursor, VS C
 - `cancel_rsvp`, using the route from stretch goal 1.7. Should it be a write? What should the approval card say?
 - `update_event`, using stretch goal 1.5.
 - A tool that lists the events an email is attending. The API already supports `?email=` on the list route.
+- **Output schemas.** Each tool's `inputSchema` tells the model what to send. MCP also supports an `outputSchema`, which describes what the tool returns, so the host can check the result and the model knows its shape in advance. Add one to `get_event` and return the event as `structuredContent` next to the text.
 
 ## Split the store into layers
 

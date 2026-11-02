@@ -11,6 +11,9 @@ export function toEvent(event: EventRow) {
     category: event.category,
     startsAt: event.starts_at,
     endsAt: event.ends_at,
+    // TODO(part-2.2): break the contract on purpose, then undo it.
+    //   Change the line below to  location: { name: event.location },  then
+    //   reload the web app and run npm run check:2. Change it back after.
     location: event.location,
     // TODO(part-2.1): add meetingUrl to the response.
     //   Online events have a link in event.meeting_url (null for in-person ones).
