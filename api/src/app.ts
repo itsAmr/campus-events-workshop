@@ -33,6 +33,14 @@ export function createApp(options: { db?: CampusDatabase } = {}) {
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
 
+  // Until TODO(part-0.1) is done there is no rsvps table, and every route would
+  // fail with a confusing SQL error. Point at the TODO instead.
+  app.use("/api", (_request, _response, next) => {
+    const table = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'rsvps'").get();
+    if (table === undefined) notImplemented("0.1", "api/migrations/001_init.sql");
+    next();
+  });
+
   app.get("/health", (_request, response) => {
     response.json({ data: { status: "ok" } });
   });
