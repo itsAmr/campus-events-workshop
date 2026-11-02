@@ -38,12 +38,27 @@ async function check(label, operation) {
   }
 }
 
-function assertPortAvailable(port) {
+// The API listens on every address and the other servers on 127.0.0.1 only, and
+// macOS lets those overlap, so try both.
+async function assertPortAvailable(port) {
+  await assertPortAvailableOn(port, "127.0.0.1");
+  await assertPortAvailableOn(port, undefined);
+}
+
+function assertPortAvailableOn(port, host) {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
 
-    server.once("error", reject);
-    server.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
+    server.once("error", (error) =>
+      reject(
+        error.code === "EADDRINUSE"
+          ? new Error(
+              'another program is using it, probably an earlier "npm run dev". Stop it with Ctrl+C in that terminal, or close the terminal, then try again.',
+            )
+          : error,
+      ),
+    );
+    server.listen({ host, port, exclusive: true }, () => {
       server.close((error) => (error ? reject(error) : resolve()));
     });
   });
@@ -60,7 +75,7 @@ await check("node:sqlite is available", async () => {
 });
 
 for (const port of ports) {
-  await check(`port ${port} is available`, () => assertPortAvailable(port));
+  await check(`port ${port} is free`, () => assertPortAvailable(port));
 }
 
 if (!quick && process.env.LLM_API_KEY) {

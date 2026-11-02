@@ -24,7 +24,7 @@ Open `api/src/app.ts`. Every route does the same three things:
 2. **Read or write the database** with a function from `events/store.ts`. This is where the SQL and the rules live.
 3. **Reply** with `{ data: ... }`, built by a function from `events/responses.ts`.
 
-Each TODO tells you exactly which function to call for each step. Run `npm run todos` any time to see what's left.
+Each TODO tells you exactly which function to call for each step. Delete the TODO comment once its route works, and run `npm run todos` any time to see what's left.
 
 ## 1.1 List events (together)
 

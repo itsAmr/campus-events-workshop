@@ -203,11 +203,7 @@ export default function App() {
                 </small>
                 <button
                   className={event.isAttending ? "secondary outline" : undefined}
-                  disabled={
-                    !email ||
-                    busyId === event.id ||
-                    (!event.isAttending && event.availableSpots === 0)
-                  }
+                  disabled={!email || busyId === event.id}
                   onClick={() => toggleRsvp(event)}
                 >
                   {event.isAttending ? "Cancel RSVP" : "RSVP"}

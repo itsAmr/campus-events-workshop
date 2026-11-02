@@ -85,5 +85,6 @@ Stretch: should `Martlet@McGill.ca` and `martlet@mcgill.ca` count as the same pe
 
 - [ ] `npm run check:0` passes.
 - [ ] A double RSVP fails in `npm run db:shell`.
+- [ ] The `TODO(part-0.1)` comment is deleted, so `npm run todos` doesn't list it.
 
 Stuck? Run `git stash` to set your changes aside, then `git switch checkpoint/0-database` and `npm run db:reset`.

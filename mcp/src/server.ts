@@ -1,30 +1,24 @@
 import { McpServer } from "@modelcontextprotocol/server";
-import { createCampusApi, notImplemented, toToolResult, type CampusApiOptions } from "./api.js";
+import * as z from "zod/v4";
+import { createCampusApi, notImplemented, reply, type CampusApiOptions } from "./api.js";
 import { registerExtras } from "./extras.js";
-import {
-  CreateEventInputSchema,
-  CreateEventOutputSchema,
-  GetEventInputSchema,
-  GetEventOutputSchema,
-  ListCategoriesInputSchema,
-  ListCategoriesOutputSchema,
-  RsvpInputSchema,
-  RsvpOutputSchema,
-  SearchEventsInputSchema,
-  SearchEventsOutputSchema,
-  type CampusEvent,
-} from "./schemas.js";
 import { resolveCampusDateRange, withLocalTime } from "./time.js";
 
-// Every tool has the same parts:
-//   - a name and a description: the only documentation the model ever sees
-//   - an input schema: the arguments the model must send, checked before your code runs
-//   - annotations: whether the tool only reads, so the chat host knows when to ask
-//     the user for approval
-//   - a handler: calls the REST API and returns the result
-
-const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true };
-const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: false };
+// An MCP server turns an API into tools a chatbot can use. Each tool below
+// wraps one REST route you wrote in Part 1:
+//   list_categories   GET  /api/v1/categories
+//   search_events     GET  /api/v1/events?q=...&category=...
+//   get_event         GET  /api/v1/events/:id
+//   rsvp_to_event     POST /api/v1/events/:id/rsvps
+//   create_event      POST /api/v1/events
+//
+// Every tool has four parts:
+//   1. a description: the only documentation the model ever reads
+//   2. an input schema: the arguments the model must send, each with its own
+//      description. MCP checks them before your handler runs.
+//   3. annotations: readOnlyHint: true means the tool only reads, so the chat
+//      runs it without asking. Anything else waits for the user to click Allow.
+//   4. a handler: calls the REST route and replies with the result
 
 export interface CampusMcpServerOptions extends CampusApiOptions {
   now?: () => Date;
@@ -33,119 +27,113 @@ export interface CampusMcpServerOptions extends CampusApiOptions {
 export function createCampusMcpServer(options: CampusMcpServerOptions = {}): McpServer {
   const api = createCampusApi(options);
   const now = options.now ?? (() => new Date());
-  const server = new McpServer(
-    { name: "campus-events", version: "1.0.0" },
-    {
-      instructions:
-        "Use these tools to discover campus events, inspect details, RSVP, and create events. Dates are interpreted in America/Montreal.",
-    },
-  );
+  const server = new McpServer({ name: "campus-events", version: "1.0.0" });
 
   // Worked example: a read-only tool with no arguments.
   server.registerTool(
     "list_categories",
     {
-      title: "List event categories",
-      description: "List the categories accepted by search_events and create_event.",
-      inputSchema: ListCategoriesInputSchema,
-      outputSchema: ListCategoriesOutputSchema,
-      annotations: readOnly,
+      description: "List the event categories that search_events and create_event accept.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
     },
-    () =>
-      toToolResult(async () => {
-        const categories = await api.get("/api/v1/categories");
-        return { categories };
-      }),
+    async () => {
+      const categories = await api.get("/api/v1/categories");
+      return reply({ categories });
+    },
   );
 
   // TODO(part-3.1): describe search_events for the model.
-  //   The description is the only documentation the model ever reads. Tell it:
-  //     - what it can search by: text (`query`), `category`, and dates (`when`)
-  //     - that `query` is matched as one exact phrase, so send one or two
-  //       keywords like "robotics", not a full event name
-  //     - to use `category` for topics (list_categories has the names)
+  //   Each argument below has a short description, but the model also needs
+  //   to know how to use them together. Replace "Search campus events." with
+  //   a few sentences that say:
+  //     - it can search by text (query), category, and dates (when)
+  //     - query is matched as one exact phrase, so send one or two keywords
+  //       like "robotics", not a full event name
+  //     - use category for topics (list_categories has the names)
   // Try it: ask the chat "Is there a robotics event coming up?"
   server.registerTool(
     "search_events",
     {
-      title: "Search campus events",
       description: "Search campus events.",
-      inputSchema: SearchEventsInputSchema,
-      outputSchema: SearchEventsOutputSchema,
-      annotations: readOnly,
+      inputSchema: {
+        query: z.string().min(1).optional().describe('One or two keywords, like "robotics"'),
+        category: z.string().min(1).optional().describe("A category name from list_categories"),
+        when: z
+          .enum(["today", "this_week", "this_weekend", "next_7_days", "any"])
+          .default("any")
+          .describe("Which dates to search, in Montreal time"),
+      },
+      annotations: { readOnlyHint: true },
     },
-    ({ query, category, when }) =>
-      toToolResult(async () => {
-        const range = resolveCampusDateRange(when, now());
-        const search = new URLSearchParams();
-        if (query) search.set("q", query);
-        if (category) search.set("category", category);
-        if (range) {
-          search.set("from", range.from);
-          search.set("to", range.to);
-        }
-        const events: CampusEvent[] = await api.get(`/api/v1/events?${search}`);
-        return { events: events.map(withLocalTime), ...(range ? { range } : {}) };
-      }),
+    async ({ query, category, when }) => {
+      const range = resolveCampusDateRange(when, now());
+      const events = await api.get("/api/v1/events", { q: query, category, from: range?.from, to: range?.to });
+      return reply({ events: events.map(withLocalTime), range });
+    },
   );
 
   // TODO(part-3.2): finish get_event.
-  //   1. Add  annotations: readOnly,  under outputSchema. Without it, the chat
-  //      plays safe and asks for approval every time the model looks an event up.
+  //   1. Add  annotations: { readOnlyHint: true },  under inputSchema. Without
+  //      it, the chat plays safe and asks for approval every time the model
+  //      looks an event up.
   //   2. In the handler, call the REST route you wrote in 1.2:
   //        const event = await api.get(`/api/v1/events/${id}`);
-  //      then return { event: withLocalTime(event) };  (it adds the Montreal time)
+  //      then reply with it:  return reply({ event: withLocalTime(event) });
+  //      withLocalTime adds the Montreal time, so the model skips timezone math.
   // Try it in MCP Inspector: call get_event with id 1.
   server.registerTool(
     "get_event",
     {
-      title: "Get an event",
-      description: "Get one campus event by its ID, including how many spots are left.",
-      inputSchema: GetEventInputSchema,
-      outputSchema: GetEventOutputSchema,
+      description: "Get one campus event by its id, including how many spots are left.",
+      inputSchema: { id: z.number().int().positive() },
     },
-    ({ id }) =>
-      toToolResult(async () => {
-        return notImplemented("3.2");
-      }),
+    async ({ id }) => {
+      return notImplemented("3.2");
+    },
   );
 
   // TODO(part-3.3): finish rsvp_to_event.
   //   Call the REST route you wrote in 1.4:
   //     const rsvp = await api.post(`/api/v1/events/${eventId}/rsvps`, { email });
-  //   then return { rsvp }. It's annotated as a write, so the chat asks the
-  //   user to approve before this code runs.
+  //   then reply with it like 3.2:  return reply({ rsvp });
+  //   It isn't read-only, so the chat asks the user to click Allow first.
   // Try it: ask the chat to RSVP you to an event, then click Allow.
   server.registerTool(
     "rsvp_to_event",
     {
-      title: "RSVP to an event",
       description: "RSVP an email address to a campus event. Confirm the email with the user first.",
-      inputSchema: RsvpInputSchema,
-      outputSchema: RsvpOutputSchema,
-      annotations: write,
+      inputSchema: {
+        eventId: z.number().int().positive(),
+        email: z.email(),
+      },
+      annotations: { readOnlyHint: false },
     },
-    ({ eventId, email }) =>
-      toToolResult(async () => {
-        return notImplemented("3.3");
-      }),
+    async ({ eventId, email }) => {
+      return notImplemented("3.3");
+    },
   );
 
   server.registerTool(
     "create_event",
     {
-      title: "Create a campus event",
-      description:
-        "Create an event. startsAt and endsAt must be ISO 8601 timestamps with an offset, and endsAt must be later.",
-      inputSchema: CreateEventInputSchema,
-      outputSchema: CreateEventOutputSchema,
-      annotations: write,
+      description: "Create a campus event. Confirm every field with the user first.",
+      inputSchema: {
+        title: z.string().min(1),
+        description: z.string().min(1),
+        category: z.string().min(1).describe("A category name from list_categories"),
+        startsAt: z.iso.datetime({ offset: true }).describe("ISO 8601 with an offset, like 2026-11-06T18:00:00-05:00"),
+        endsAt: z.iso.datetime({ offset: true }).describe("ISO 8601 with an offset, after startsAt"),
+        location: z.string().min(1),
+        capacity: z.number().int().positive(),
+        meetingUrl: z.url().optional().describe("Only for online events"),
+      },
+      annotations: { readOnlyHint: false },
     },
-    (input) =>
-      toToolResult(async () => {
-        const event = await api.post("/api/v1/events", input);
-        return { event: withLocalTime(event) };
-      }),
+    async (input) => {
+      const event = await api.post("/api/v1/events", input);
+      return reply({ event: withLocalTime(event) });
+    },
   );
 
   registerExtras(server);

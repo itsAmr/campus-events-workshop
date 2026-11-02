@@ -21,16 +21,25 @@ Three roles to know:
 - **Server:** your code in `mcp/`. It lists **tools** and runs them by calling the REST API. It never opens the database.
 - **Model:** reads the tool descriptions and asks the host to call one. It never calls your API directly.
 
-An MCP server can offer three things: **tools** (actions the model can ask for), **resources** (read-only content), and **prompts** (reusable message templates). This workshop uses tools; `mcp/src/extras.ts` shows the other two.
+## Read the server
 
-## Read the worked example
+Open `mcp/src/server.ts`. The comment at the top lists the five tools and the REST route each one wraps. Then read `list_categories`, the worked example. Every tool has four parts:
 
-Open `mcp/src/server.ts` and read `list_categories`. Every tool has the same parts:
+1. a **description**: the only documentation the model ever reads;
+2. an **input schema**: the arguments the model must send, checked before your code runs;
+3. **annotations**: `readOnlyHint: true` means the tool only reads, so the chat runs it without asking. Anything else waits for you to click **Allow**;
+4. a **handler**: calls the REST route and replies with the result.
 
-- a **name** and **description**: the only documentation the model ever gets;
-- an **input schema**: the arguments the model must send, checked before your code runs;
-- **annotations**: whether the tool only reads, so the host knows when to ask you for approval;
-- a **handler**: calls the REST API and returns the result.
+When a handler throws, for example because the API said `EVENT_FULL`, MCP sends the error message to the model instead, so it can explain what went wrong.
+
+That file is most of the server. The others are short, and you don't need to change them:
+
+| File | What it does |
+| --- | --- |
+| `api.ts` | `api.get` and `api.post` call your REST API; `reply` wraps a result for the model |
+| `time.ts` | turns "this weekend" into Montreal dates, and adds a ready-to-quote `localTime` to each event, because models are bad at timezone math |
+| `extras.ts` | the two other things an MCP server can offer: a **resource** (read-only content) and a **prompt** (a reusable message template) |
+| `main.ts` | serves it all over HTTP at <http://localhost:3002/mcp> |
 
 Start MCP Inspector, a tool for calling MCP servers by hand:
 
@@ -50,7 +59,7 @@ One annotation and one API call: the route you wrote in 1.2. In Inspector, run `
 
 ## 3.3 Finish `rsvp_to_event`
 
-This tool changes data, so it's annotated as a write. The chat will show you exactly what it's about to do and wait for **Allow**. Ask the chat to RSVP you to an event and try both **Deny** and **Allow**.
+One API call: the route you wrote in 1.4. This tool changes data, so the chat shows you exactly what it's about to do and waits for **Allow**. Ask the chat to RSVP you to an event and try both **Deny** and **Allow**.
 
 ## Done when
 
@@ -58,7 +67,7 @@ This tool changes data, so it's annotated as a write. The chat will show you exa
 npm run check:3
 ```
 
-- [ ] Every Part 3 test passes.
+- [ ] Every Part 3 test passes, and the Part 3 TODO comments are deleted.
 - [ ] Inspector can run `list_categories`, `search_events`, and `get_event`.
 - [ ] The chat finds events and asks before RSVPing.
 
