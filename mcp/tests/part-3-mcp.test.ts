@@ -11,9 +11,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-const structured = <T>(result: CallToolResult) => result.structuredContent as T;
-const errorText = (result: CallToolResult) =>
-  JSON.parse(result.content[0]?.type === "text" ? result.content[0].text : "{}");
+const text = (result: CallToolResult) => (result.content[0]?.type === "text" ? result.content[0].text : "");
+const structured = <T>(result: CallToolResult) => JSON.parse(text(result)) as T;
 
 const eventFixture = {
   id: 1,
@@ -171,14 +170,14 @@ describe("Part 3: MCP server", () => {
     );
     const result = await client.callTool({ name: "get_event", arguments: { id: 999 } });
     expect(result.isError).toBe(true);
-    expect(errorText(result)).toEqual({ code: "NOT_FOUND", message: "Event not found" });
+    expect(text(result)).toContain("NOT_FOUND: Event not found");
   });
 
   it("explains which response shape it expected when the API breaks its contract", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([eventFixture]));
     const result = await client.callTool({ name: "search_events", arguments: {} });
     expect(result.isError).toBe(true);
-    expect(errorText(result).message).toContain("should reply with { data: ... }");
+    expect(text(result)).toContain("should reply with { data: ... }");
   });
 
   it("calculates every named range as Montreal calendar dates", () => {

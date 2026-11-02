@@ -1,15 +1,15 @@
-# Part 2 — Design responses that can grow
+# Part 2 — Change the API without breaking its users
 
 **Time:** 20 minutes  
-**Goal:** change what the API sends without breaking anyone who already uses it.
+**Goal:** change what the API sends and accepts without breaking anyone who already uses it.
 
 ## Your response is a promise
 
-The moment a client reads your JSON, every field name, type, and format becomes something their code depends on. The web app in `web/src/api.ts` expects `location` to be a string. The MCP server you'll meet in Part 3 expects timestamps like `2026-11-06T17:00:00.000Z`.
+The moment a client reads your JSON, every field name, type, and format becomes something their code depends on. The web app in `web/src/api.ts` expects `location` to be a string, and timestamps like `2026-11-06T17:00:00.000Z`.
 
 **Hyrum's law:** with enough users, every behavior they can observe will be depended on by somebody, whether you promised it or not.
 
-A real example from this repo: nobody documented the timestamp format, but `mcp/src/schemas.ts` checks it. That's why Part 0 asked you to copy the `created_at` line. A database default of `CURRENT_TIMESTAMP` gives `2026-11-06 17:00:00`, which looks harmless and would have broken the MCP server's RSVP tool.
+A real example from this repo: nobody documented the timestamp format, but the web app relies on it. That's why Part 0 asked you to copy the `created_at` line. A database default of `CURRENT_TIMESTAMP` gives `2026-11-06 17:00:00`, with no `Z` to say it's UTC. Most browsers read a timestamp like that as local time, so in Montreal the web app would show it 5 hours off. No error, no failed test: just wrong times.
 
 ## Discuss: breaking or not?
 
@@ -29,7 +29,7 @@ Your facilitator will run a quick vote. Would each change break an existing clie
 2. Breaking. Every client reading `startsAt` now gets nothing.
 3. Breaking. Code that shows `location` now shows `[object Object]` or crashes. You'll see it in 2.2.
 4. Breaking for someone. The order was never promised, but a client showing "the next event" takes the first item. Hyrum's law.
-5. Breaking. The meaning is the same, but parsers expect the exact format. Hyrum's law again.
+5. Breaking. The meaning is the same, but the web app would show the wrong time. Hyrum's law again.
 6. Usually safe, unless a client has a hardcoded list of categories.
 
 </details>
@@ -47,15 +47,43 @@ Nothing else had to change. Clients that don't know about `meetingUrl` ignore it
 
 ## 2.2 Break it on purpose
 
-Now try change 3 from the vote. In `toEvent`, replace the `location` line with:
+Now try change 3 from the vote. Follow `TODO(part-2.2)` in the same file and change `location` to:
 
 ```ts
-location: { name: event.location, url: event.meeting_url },
+location: { name: event.location },
 ```
 
 Look at the web app: it crashes, because it tries to show the `location` object as text. Run `npm run check:2`: the test "keeps every field clients already rely on" fails too. A test like that guards the promise, so a breaking change gets caught before clients see it.
 
 **Undo the change** before moving on.
+
+## Requests can break too
+
+Responses are what you promise to send. Requests are what you promise to accept, and the rules are mirrored:
+
+| | Safe | Breaking |
+| --- | --- | --- |
+| **Responses** | send more: add a field | send less or different: remove, rename, or change a field's type |
+| **Requests** | accept more: a new optional field, a looser rule | demand more: a new required field, a stricter rule, a renamed field |
+
+A short way to remember it, known as Postel's law: be strict in what you send, and generous in what you accept.
+
+Quick check. Breaking or not?
+
+1. Make `meetingUrl` required when creating an event.
+2. Allow titles up to 200 characters instead of 120.
+3. Make `category` required when listing events.
+
+<details>
+<summary>Answers</summary>
+
+1. Breaking. The web app's form doesn't send `meetingUrl`, so every new event would get a 400.
+2. Safe. Every title that worked before still works.
+3. Breaking. **All categories** in the web app sends no category. Your facilitator will show what happens, and why giving it a default isn't as safe as it looks.
+
+</details>
+
+The request schemas in `api/src/events/requests.ts` ignore fields they don't know, which is generous too: a client can send an extra field without getting a 400.
 
 ## What would force a v2?
 
@@ -63,7 +91,7 @@ Suppose we really did need `location` to be an object. We can't change it in v1 
 
 ```ts
 app.get("/api/v2/events/:id", (request, response) => {
-  const event = getEvent(db, parseId(request.params.id));
+  const event = getEvent(db, readEventId(request));
   response.json({ data: toEventV2(event) });
 });
 ```
@@ -91,6 +119,6 @@ npm run check:2
 
 - [ ] Every Part 2 test passes.
 - [ ] Online events show **Join online** in the web app.
-- [ ] `location` is a string again.
+- [ ] `location` is a string again, and the Part 2 TODO comments are deleted.
 
 Stuck? Run `git stash`, then `git switch checkpoint/2-responses` and `npm run db:reset`.
