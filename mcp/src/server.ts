@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
-import * as z from "zod/v4";
-import { createCampusApi, notImplemented, reply, type CampusApiOptions } from "./api.js";
+import { z } from "zod";
+import { createCampusApi, notImplemented, reply } from "./api.js";
 import { registerExtras } from "./extras.js";
 import { resolveCampusDateRange, withLocalTime } from "./time.js";
 
@@ -20,13 +20,8 @@ import { resolveCampusDateRange, withLocalTime } from "./time.js";
 //      runs it without asking. Anything else waits for the user to click Allow.
 //   4. a handler: calls the REST route and replies with the result
 
-export interface CampusMcpServerOptions extends CampusApiOptions {
-  now?: () => Date;
-}
-
-export function createCampusMcpServer(options: CampusMcpServerOptions = {}): McpServer {
-  const api = createCampusApi(options);
-  const now = options.now ?? (() => new Date());
+export function createCampusMcpServer(apiUrl?: string): McpServer {
+  const api = createCampusApi(apiUrl);
   const server = new McpServer({ name: "campus-events", version: "1.0.0" });
 
   // Worked example: a read-only tool with no arguments.
@@ -67,9 +62,9 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
       annotations: { readOnlyHint: true },
     },
     async ({ query, category, when }) => {
-      const range = resolveCampusDateRange(when, now());
+      const range = resolveCampusDateRange(when);
       const events = await api.get("/api/v1/events", { q: query, category, from: range?.from, to: range?.to });
-      return reply({ events: events.map(withLocalTime), range });
+      return reply({ events: events.map(withLocalTime) });
     },
   );
 

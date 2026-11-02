@@ -1,153 +1,54 @@
 // Montreal date helpers used by search_events. You do not need to read this file.
 
-export const CAMPUS_TIMEZONE = "America/Montreal" as const;
+const TIMEZONE = "America/Montreal";
 
-export type EventWhen =
-  | "today"
-  | "this_week"
-  | "this_weekend"
-  | "next_7_days"
-  | "any";
+export type EventWhen = "today" | "this_week" | "this_weekend" | "next_7_days" | "any";
 
-export interface CampusDateRange {
-  startDate: string;
-  endDate: string;
-  from: string;
-  to: string;
-  timezone: typeof CAMPUS_TIMEZONE;
-}
+// Turns a named range into the from/to timestamps the REST API expects, using
+// Montreal calendar days. Weeks end on Sunday.
+export function resolveCampusDateRange(when: EventWhen, now = new Date()) {
+  if (when === "any") return undefined;
 
-interface CalendarDate {
-  year: number;
-  month: number;
-  day: number;
-}
-
-function dateInMontreal(now: Date): CalendarDate {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: CAMPUS_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-
-  const value = (type: Intl.DateTimeFormatPartTypes): number => {
-    const part = parts.find((candidate) => candidate.type === type)?.value;
-    if (part === undefined) {
-      throw new Error(`Unable to calculate Montreal date: missing ${type}`);
-    }
-    return Number(part);
-  };
-
-  return {
-    year: value("year"),
-    month: value("month"),
-    day: value("day"),
-  };
-}
-
-function addDays(date: CalendarDate, days: number): CalendarDate {
-  const shifted = new Date(Date.UTC(date.year, date.month - 1, date.day + days));
-  return {
-    year: shifted.getUTCFullYear(),
-    month: shifted.getUTCMonth() + 1,
-    day: shifted.getUTCDate(),
-  };
-}
-
-function formatDate(date: CalendarDate): string {
-  return `${date.year}-${String(date.month).padStart(2, "0")}-${String(
-    date.day,
-  ).padStart(2, "0")}`;
-}
-
-function weekday(date: CalendarDate): number {
-  return new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
-}
-
-function montrealMidnight(date: CalendarDate): Date {
-  const target = Date.UTC(date.year, date.month - 1, date.day);
-  let instant = target;
-  const formatter = new Intl.DateTimeFormat("en-CA-u-hc-h23", {
-    timeZone: CAMPUS_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  });
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const parts = formatter.formatToParts(new Date(instant));
-    const value = (type: Intl.DateTimeFormatPartTypes): number =>
-      Number(parts.find((part) => part.type === type)?.value);
-    const rendered = Date.UTC(
-      value("year"),
-      value("month") - 1,
-      value("day"),
-      value("hour"),
-      value("minute"),
-      value("second"),
-    );
-    const adjustment = target - rendered;
-    instant += adjustment;
-    if (adjustment === 0) {
-      break;
-    }
+  const today = montrealDate(now);
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay(); // 0 is Sunday
+  let start = today;
+  let days = 1;
+  if (when === "next_7_days") days = 7;
+  if (when === "this_week") days = weekday === 0 ? 1 : 8 - weekday;
+  if (when === "this_weekend") {
+    start = addDays(today, weekday === 0 || weekday === 6 ? 0 : 6 - weekday);
+    days = weekday === 0 ? 1 : 2;
   }
 
-  return new Date(instant);
-}
-
-function range(start: CalendarDate, end: CalendarDate): CampusDateRange {
+  const end = montrealMidnight(addDays(start, days));
   return {
-    startDate: formatDate(start),
-    endDate: formatDate(end),
     from: montrealMidnight(start).toISOString(),
-    to: new Date(montrealMidnight(end).getTime() - 1).toISOString(),
-    timezone: CAMPUS_TIMEZONE,
+    to: new Date(end.getTime() - 1).toISOString(),
   };
 }
 
-export function resolveCampusDateRange(
-  when: EventWhen,
-  now = new Date(),
-): CampusDateRange | undefined {
-  if (when === "any") {
-    return undefined;
-  }
+// "2026-11-06" for the day it is in Montreal at that instant.
+function montrealDate(instant: Date): string {
+  return instant.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+}
 
-  const today = dateInMontreal(now);
-  let end: CalendarDate;
+function addDays(date: string, days: number): string {
+  const shifted = new Date(`${date}T12:00:00Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
 
-  switch (when) {
-    case "today":
-      end = addDays(today, 1);
-      break;
-    case "next_7_days":
-      end = addDays(today, 7);
-      break;
-    case "this_week": {
-      const day = weekday(today);
-      const daysUntilNextMonday = day === 0 ? 1 : 8 - day;
-      end = addDays(today, daysUntilNextMonday);
-      break;
-    }
-    case "this_weekend": {
-      const day = weekday(today);
-      const daysUntilSaturday = day === 0 ? 0 : day === 6 ? 0 : 6 - day;
-      const start = addDays(today, daysUntilSaturday);
-      return range(start, addDays(start, day === 0 ? 1 : 2));
-    }
-  }
-
-  return range(today, end);
+// Montreal is 4 or 5 hours behind UTC depending on daylight saving time, so ask
+// for the offset in effect that night. Clocks change at 2 AM, after 05:00 UTC.
+function montrealMidnight(date: string): Date {
+  const offset = new Intl.DateTimeFormat("en-US", { timeZone: TIMEZONE, timeZoneName: "longOffset" })
+    .formatToParts(new Date(`${date}T05:00:00Z`))
+    .find((part) => part.type === "timeZoneName")!.value; // like "GMT-05:00"
+  return new Date(`${date}T00:00:00${offset.replace("GMT", "")}`);
 }
 
 const montrealTime = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Toronto",
+  timeZone: TIMEZONE,
   weekday: "short",
   month: "short",
   day: "numeric",
