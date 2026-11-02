@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/server";
-import * as z from "zod/v4";
+import { z } from "zod";
 
 // Tools are one of three things an MCP server can offer. This file shows the
 // other two, which the workshop chat does not use but MCP Inspector can:
