@@ -1,25 +1,11 @@
-import type { CallToolResult, JSONValue } from "@modelcontextprotocol/server";
+import type { CallToolResult } from "@modelcontextprotocol/server";
 
-// A tiny client for the REST API from Parts 1 and 2. The MCP server never opens
-// the database; it only calls the same endpoints the web app uses.
+// A small client for the REST API you built. The MCP server never opens the
+// database; it calls the same routes as the web app.
 
 export interface CampusApiOptions {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
-}
-
-export class CampusApiError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-// Unfinished starter TODOs call this, so the model can tell the user which TODO is left.
-export function notImplemented(todo: string): never {
-  throw new CampusApiError("NOT_IMPLEMENTED", `Finish TODO(part-${todo}) in mcp/src/server.ts`);
 }
 
 export function createCampusApi(options: CampusApiOptions = {}) {
@@ -34,37 +20,35 @@ export function createCampusApi(options: CampusApiOptions = {}) {
     });
     const json = await response.json().catch(() => undefined);
     if (!response.ok) {
-      throw new CampusApiError(
-        json?.error?.code ?? `HTTP_${response.status}`,
-        json?.error?.message ?? `${method} ${path} failed with HTTP ${response.status}`,
-      );
+      const code = json?.error?.code ?? `HTTP_${response.status}`;
+      throw new Error(`${code}: ${json?.error?.message ?? `${method} ${path} failed`}`);
     }
     if (json === undefined || !("data" in json)) {
-      throw new CampusApiError("UNEXPECTED_RESPONSE", `${method} ${path} should reply with { data: ... }`);
+      throw new Error(`UNEXPECTED_RESPONSE: ${method} ${path} should reply with { data: ... }`);
     }
     return json.data;
   }
 
   return {
-    get: (path: string) => call("GET", path),
+    // Query values that are undefined are left out, so optional filters can be passed as they are.
+    get(path: string, query: Record<string, string | undefined> = {}) {
+      const search = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined) search.set(key, value);
+      }
+      return call("GET", search.size > 0 ? `${path}?${search}` : path);
+    },
     post: (path: string, body: unknown) => call("POST", path, body),
   };
 }
 
-// Turns the result of an API call into what MCP sends back to the model: the
-// data as JSON, or an error the model can read and explain to the user.
-export async function toToolResult(work: () => Promise<Record<string, unknown>>): Promise<CallToolResult> {
-  try {
-    const result = await work();
-    return {
-      content: [{ type: "text", text: JSON.stringify(result) }],
-      structuredContent: result as Record<string, JSONValue>,
-    };
-  } catch (error) {
-    const reason =
-      error instanceof CampusApiError
-        ? { code: error.code, message: error.message }
-        : { code: "INTERNAL_ERROR", message: error instanceof Error ? error.message : String(error) };
-    return { isError: true, content: [{ type: "text", text: JSON.stringify(reason) }] };
-  }
+// What a tool sends back to the model: its result as JSON text. When a handler
+// throws instead, MCP sends the error message, so the model can explain it.
+export function reply(result: unknown): CallToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(result) }] };
+}
+
+// Unfinished starter TODOs call this, so the model can tell the user which TODO is left.
+export function notImplemented(todo: string): never {
+  throw new Error(`NOT_IMPLEMENTED: Finish TODO(part-${todo}) in mcp/src/server.ts`);
 }

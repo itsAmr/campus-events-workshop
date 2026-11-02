@@ -41,7 +41,7 @@ Open <http://localhost:5173>. You'll see an error asking you to finish a TODO: t
 | [4. Try the whole thing](docs/part-4-chatbot.md) | Search, RSVP, and create events by chat | |
 | [Next steps](docs/next-steps.md) | Keep building | |
 
-Every task is a numbered `TODO(part-N.N)` comment in the code. To list the ones left:
+Every task is a numbered `TODO(part-N.N)` comment in the code. When you finish one, delete its comment, so this list only shows what's left:
 
 ```bash
 npm run todos
