@@ -36,10 +36,10 @@ describe("Part 3: MCP server", () => {
 
   beforeEach(async () => {
     fetchMock = vi.fn<typeof fetch>();
-    server = createCampusMcpServer({
-      fetch: fetchMock,
-      now: () => new Date("2026-10-28T02:00:00.000Z"),
-    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-28T02:00:00.000Z"));
+    server = createCampusMcpServer();
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
     client = new Client({ name: "campus-mcp-test", version: "1.0.0" });
@@ -49,6 +49,8 @@ describe("Part 3: MCP server", () => {
   afterEach(async () => {
     await client.close();
     await server.close();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   const toolNamed = async (name: string) =>
@@ -92,13 +94,7 @@ describe("Part 3: MCP server", () => {
       arguments: { query: "market", category: "social", when: "today" },
     });
 
-    expect(structured<{ range: unknown }>(result).range).toEqual({
-      startDate: "2026-10-27",
-      endDate: "2026-10-28",
-      from: "2026-10-27T04:00:00.000Z",
-      to: "2026-10-28T03:59:59.999Z",
-      timezone: "America/Montreal",
-    });
+    expect(structured<{ events: unknown[] }>(result).events).toHaveLength(1);
     const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(url.pathname).toBe("/api/v1/events");
     expect(Object.fromEntries(url.searchParams)).toEqual({
@@ -182,22 +178,33 @@ describe("Part 3: MCP server", () => {
 
   it("calculates every named range as Montreal calendar dates", () => {
     const now = new Date("2026-10-28T02:00:00.000Z");
-    expect(resolveCampusDateRange("today", now)).toMatchObject({ startDate: "2026-10-27", endDate: "2026-10-28" });
-    expect(resolveCampusDateRange("this_week", now)).toMatchObject({
-      startDate: "2026-10-27",
-      endDate: "2026-11-02",
+    // A Tuesday evening in Montreal; daylight saving time ends on Sunday, Nov 1.
+    expect(resolveCampusDateRange("today", now)).toEqual({
+      from: "2026-10-27T04:00:00.000Z",
+      to: "2026-10-28T03:59:59.999Z",
+    });
+    expect(resolveCampusDateRange("this_week", now)).toEqual({
       from: "2026-10-27T04:00:00.000Z",
       to: "2026-11-02T04:59:59.999Z",
     });
-    expect(resolveCampusDateRange("this_weekend", now)).toMatchObject({
-      startDate: "2026-10-31",
-      endDate: "2026-11-02",
+    expect(resolveCampusDateRange("this_weekend", now)).toEqual({
+      from: "2026-10-31T04:00:00.000Z",
+      to: "2026-11-02T04:59:59.999Z",
     });
-    expect(resolveCampusDateRange("next_7_days", now)).toMatchObject({
-      startDate: "2026-10-27",
-      endDate: "2026-11-03",
+    expect(resolveCampusDateRange("next_7_days", now)).toEqual({
+      from: "2026-10-27T04:00:00.000Z",
+      to: "2026-11-03T04:59:59.999Z",
     });
     expect(resolveCampusDateRange("any", now)).toBeUndefined();
+    // On a Saturday and a Sunday, "this weekend" starts today.
+    expect(resolveCampusDateRange("this_weekend", new Date("2026-11-07T15:00:00.000Z"))).toEqual({
+      from: "2026-11-07T05:00:00.000Z",
+      to: "2026-11-09T04:59:59.999Z",
+    });
+    expect(resolveCampusDateRange("this_weekend", new Date("2026-11-08T15:00:00.000Z"))).toEqual({
+      from: "2026-11-08T05:00:00.000Z",
+      to: "2026-11-09T04:59:59.999Z",
+    });
   });
 
   it("serves the guide resource and planning prompt from extras.ts", async () => {
