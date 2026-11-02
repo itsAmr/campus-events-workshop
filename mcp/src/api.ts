@@ -2,21 +2,13 @@ import type { CallToolResult } from "@modelcontextprotocol/server";
 
 // A small client for the REST API you built. The MCP server never opens the
 // database; it calls the same routes as the web app.
-
-export interface CampusApiOptions {
-  baseUrl?: string;
-  fetch?: typeof globalThis.fetch;
-}
-
-export function createCampusApi(options: CampusApiOptions = {}) {
-  const baseUrl = options.baseUrl ?? "http://127.0.0.1:3001";
-  const fetchImpl = options.fetch ?? globalThis.fetch;
-
+export function createCampusApi(baseUrl = "http://127.0.0.1:3001") {
   async function call(method: string, path: string, body?: unknown): Promise<any> {
-    const response = await fetchImpl(`${baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       method,
-      headers: { accept: "application/json", "content-type": "application/json" },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined
+        ? {}
+        : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
     });
     const json = await response.json().catch(() => undefined);
     if (!response.ok) {
