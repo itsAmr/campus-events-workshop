@@ -39,10 +39,10 @@ export function registerExtras(server: McpServer): void {
     {
       title: "Plan a campus week",
       description: "Build a balanced week plan from upcoming campus events and the user's interests.",
-      argsSchema: {
+      argsSchema: z.object({
         interests: z.string().min(1).optional(),
         availability: z.string().min(1).optional(),
-      },
+      }),
     },
     ({ interests, availability }) => ({
       description: "Plan a week of campus events.",

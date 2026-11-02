@@ -34,7 +34,7 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
     "list_categories",
     {
       description: "List the event categories that search_events and create_event accept.",
-      inputSchema: {},
+      inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
     async () => {
@@ -56,14 +56,14 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
     "search_events",
     {
       description: "Search campus events.",
-      inputSchema: {
+      inputSchema: z.object({
         query: z.string().min(1).optional().describe('One or two keywords, like "robotics"'),
         category: z.string().min(1).optional().describe("A category name from list_categories"),
         when: z
           .enum(["today", "this_week", "this_weekend", "next_7_days", "any"])
           .default("any")
           .describe("Which dates to search, in Montreal time"),
-      },
+      }),
       annotations: { readOnlyHint: true },
     },
     async ({ query, category, when }) => {
@@ -86,7 +86,7 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
     "get_event",
     {
       description: "Get one campus event by its id, including how many spots are left.",
-      inputSchema: { id: z.number().int().positive() },
+      inputSchema: z.object({ id: z.number().int().positive() }),
     },
     async ({ id }) => {
       return notImplemented("3.2");
@@ -103,10 +103,10 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
     "rsvp_to_event",
     {
       description: "RSVP an email address to a campus event. Confirm the email with the user first.",
-      inputSchema: {
+      inputSchema: z.object({
         eventId: z.number().int().positive(),
         email: z.email(),
-      },
+      }),
       annotations: { readOnlyHint: false },
     },
     async ({ eventId, email }) => {
@@ -118,7 +118,7 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
     "create_event",
     {
       description: "Create a campus event. Confirm every field with the user first.",
-      inputSchema: {
+      inputSchema: z.object({
         title: z.string().min(1),
         description: z.string().min(1),
         category: z.string().min(1).describe("A category name from list_categories"),
@@ -127,7 +127,7 @@ export function createCampusMcpServer(options: CampusMcpServerOptions = {}): Mcp
         location: z.string().min(1),
         capacity: z.number().int().positive(),
         meetingUrl: z.url().optional().describe("Only for online events"),
-      },
+      }),
       annotations: { readOnlyHint: false },
     },
     async (input) => {
