@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 
 export class ApiError extends Error {
   constructor(
@@ -46,7 +46,7 @@ export const unknownRoute: RequestHandler = (_request, response) => {
 // Every error leaves the API in the same { error: { code, message, details } } shape.
 export const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
   if (error instanceof ZodError) {
-    const { fieldErrors, formErrors } = error.flatten();
+    const { fieldErrors, formErrors } = z.flattenError(error);
     response.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
@@ -75,7 +75,9 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
     return;
   }
 
+  // A bug, not bad input: print it so it shows up in the npm run dev output.
+  console.error(error);
   response.status(500).json({
-    error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" },
+    error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred. Check the api lines in the terminal." },
   });
 };

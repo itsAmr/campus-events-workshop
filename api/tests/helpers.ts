@@ -5,7 +5,7 @@ import { seedDatabase } from "../src/db/seed.js";
 export function seededApp() {
   const db = createDatabase(":memory:");
   seedDatabase(db);
-  return { db, app: createApp({ db }) };
+  return { db, app: createApp(db) };
 }
 
 export function newEventBody(overrides: Record<string, unknown> = {}) {

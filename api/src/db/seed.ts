@@ -1,5 +1,4 @@
-import { pathToFileURL } from "node:url";
-import { createDatabase, type CampusDatabase } from "./database.js";
+import type { CampusDatabase } from "./database.js";
 
 type SeedEvent = {
   title: string;
@@ -68,7 +67,7 @@ export function seedDatabase(db: CampusDatabase): void {
         isoAtDayOffset(event.day, 19),
         event.location,
         event.capacity ?? 60,
-        event.online ? `https://events.mcgill.ca/meet/${event.day}` : null,
+        event.online ? `https://example.com/meet/${event.day}` : null,
       );
     }
 
@@ -91,11 +90,4 @@ export function seedDatabase(db: CampusDatabase): void {
     db.exec("ROLLBACK");
     throw error;
   }
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const db = createDatabase();
-  seedDatabase(db);
-  db.close();
-  console.log("Seeded 25 relative-date McGill and Concordia events");
 }

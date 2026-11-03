@@ -72,7 +72,7 @@ export default function App() {
   const [identity, setIdentity] = useState(loadIdentity);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
-  const [thisWeek, setThisWeek] = useState(true);
+  const [thisWeek, setThisWeek] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<number>();
@@ -85,9 +85,11 @@ export default function App() {
     localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
   }, [identity]);
 
+  // Categories need the API too, so load them again whenever the list recovers
+  // from an error (like a TODO that just got finished).
   useEffect(() => {
-    listCategories().then(setCategories, () => setCategories([]));
-  }, []);
+    if (!error) listCategories().then(setCategories, () => setCategories([]));
+  }, [error]);
 
   async function toggleRsvp(event: CampusEvent) {
     setBusyId(event.id);
@@ -167,8 +169,8 @@ export default function App() {
               onChange={(e) => setThisWeek(e.target.value === "week")}
               aria-label="Date range"
             >
-              <option value="week">Next 7 days</option>
               <option value="all">All dates</option>
+              <option value="week">Next 7 days</option>
             </select>
           </div>
 

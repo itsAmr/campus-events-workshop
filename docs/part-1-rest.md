@@ -44,7 +44,7 @@ Enter a name and email at the top of the web app and click **RSVP** on an event.
 
 ## Stretch goals
 
-TODOs 1.5 to 1.7 add updating and deleting events and cancelling an RSVP. **Cancel RSVP** in the web app uses 1.7.
+TODOs 1.5 to 1.7 add updating and deleting events and cancelling an RSVP. **Cancel RSVP** in the web app uses 1.7. Check them with `npm run check:1-stretch`.
 
 ## Done when
 
