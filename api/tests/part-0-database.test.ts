@@ -63,6 +63,13 @@ describe("Part 0: the rsvps table", () => {
     expect(() => addRsvp(999_999, "martlet@mcgill.ca")).toThrow(/FOREIGN KEY/);
   });
 
+  it("requires an event", () => {
+    expect(
+      () => addRsvp(null, "martlet@mcgill.ca"),
+      "An RSVP with no event_id at all should fail too. FOREIGN KEY allows NULL, so look up NOT NULL",
+    ).toThrow(/constraint failed/);
+  });
+
   it("rejects a second RSVP from the same email for the same event", () => {
     addRsvp(eventId, "martlet@mcgill.ca");
     expect(() => addRsvp(eventId, "martlet@mcgill.ca")).toThrow(/UNIQUE/);

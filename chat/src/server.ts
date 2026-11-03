@@ -1,288 +1,117 @@
-import express, {
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
-import { pathToFileURL } from "node:url";
+import express, { type NextFunction, type Request, type Response } from "express";
 
 import { runAgent } from "./agent.js";
-import { AgentInputError, HttpError } from "./errors.js";
-import { connectMcp, type McpSession } from "./mcp.js";
+import { HttpError } from "./errors.js";
+import { connectMcp } from "./mcp.js";
 import { createProvider } from "./provider.js";
-import type {
-  AgentRequest,
-  ApprovalDecision,
-  ChatMessage,
-  JsonObject,
-  ToolCall,
-  UserIdentity,
-} from "./types.js";
+import type { Approval, ChatMessage, ChatRequest, Tool } from "./types.js";
 
-const DEFAULT_MCP_URL = "http://127.0.0.1:3002/mcp";
+const isText = (value: unknown): value is string => typeof value === "string";
 
-function objectValue(value: unknown): value is JsonObject {
-  return value !== null && !Array.isArray(value) && typeof value === "object";
-}
+const isToolCall = (call: any): boolean =>
+  isText(call?.id) && isText(call.function?.name) && isText(call.function.arguments);
 
-function parseToolCall(value: unknown): ToolCall {
-  if (!objectValue(value) || !objectValue(value.function)) {
-    throw new HttpError(400, "invalid_request", "Invalid assistant tool call.");
+const isApproval = (approval: any): approval is Approval =>
+  isText(approval?.callId) &&
+  isText(approval.name) &&
+  typeof approval.args === "object" &&
+  approval.args !== null &&
+  typeof approval.allowed === "boolean";
+
+// The browser sends the whole conversation every time. It may send user,
+// assistant, and tool messages, but never a system message: the host writes
+// the system prompt itself. Tool calls are kept whole (see ToolCall).
+function readMessage(message: any): ChatMessage {
+  if (message?.role === "user" && isText(message.content)) {
+    return { role: "user", content: message.content };
   }
   if (
-    typeof value.id !== "string" ||
-    value.type !== "function" ||
-    typeof value.function.name !== "string" ||
-    typeof value.function.arguments !== "string"
+    message?.role === "assistant" &&
+    (message.content === null || isText(message.content)) &&
+    (message.tool_calls === undefined || (Array.isArray(message.tool_calls) && message.tool_calls.every(isToolCall)))
   ) {
-    throw new HttpError(400, "invalid_request", "Invalid assistant tool call.");
+    return { role: "assistant", content: message.content, ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}) };
   }
-  return value as unknown as ToolCall;
+  if (message?.role === "tool" && isText(message.tool_call_id) && isText(message.content)) {
+    const name = isText(message.name) ? message.name : undefined;
+    return { role: "tool", tool_call_id: message.tool_call_id, name, content: message.content };
+  }
+  throw new HttpError(400, "invalid_request", "Each message must be a valid user, assistant, or tool message.");
 }
 
-function parseMessage(value: unknown): ChatMessage {
-  if (!objectValue(value) || typeof value.role !== "string") {
-    throw new HttpError(400, "invalid_request", "Each message needs a role.");
+function readChatRequest(body: any): ChatRequest {
+  if (!Array.isArray(body?.messages) || typeof body.user !== "object" || body.user === null) {
+    throw new HttpError(400, "invalid_request", "The body needs a messages array and a user object.");
   }
-
-  if (value.role === "user") {
-    if (typeof value.content !== "string") {
-      throw new HttpError(
-        400,
-        "invalid_request",
-        "User message content must be a string.",
-      );
-    }
-    return { role: "user", content: value.content };
+  if (body.approval !== undefined && !isApproval(body.approval)) {
+    throw new HttpError(400, "invalid_request", "The approval needs callId, name, args, and allowed.");
   }
-
-  if (value.role === "assistant") {
-    if (value.content !== null && typeof value.content !== "string") {
-      throw new HttpError(
-        400,
-        "invalid_request",
-        "Assistant content must be a string or null.",
-      );
-    }
-    const toolCalls =
-      value.tool_calls === undefined
-        ? undefined
-        : Array.isArray(value.tool_calls)
-          ? value.tool_calls.map(parseToolCall)
-          : null;
-    if (toolCalls === null) {
-      throw new HttpError(
-        400,
-        "invalid_request",
-        "Assistant tool_calls must be an array.",
-      );
-    }
-    return {
-      role: "assistant",
-      content: value.content,
-      ...(toolCalls ? { tool_calls: toolCalls } : {}),
-    };
-  }
-
-  if (value.role === "tool") {
-    if (
-      typeof value.tool_call_id !== "string" ||
-      typeof value.content !== "string" ||
-      (value.name !== undefined && typeof value.name !== "string")
-    ) {
-      throw new HttpError(400, "invalid_request", "Invalid tool message.");
-    }
-    return {
-      role: "tool",
-      tool_call_id: value.tool_call_id,
-      content: value.content,
-      ...(typeof value.name === "string" ? { name: value.name } : {}),
-    };
-  }
-
-  throw new HttpError(
-    400,
-    "invalid_request",
-    "Only user, assistant, and tool messages are accepted.",
-  );
-}
-
-function parseApproval(value: unknown): ApprovalDecision | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (
-    !objectValue(value) ||
-    typeof value.callId !== "string" ||
-    typeof value.name !== "string" ||
-    !objectValue(value.args) ||
-    typeof value.allowed !== "boolean"
-  ) {
-    throw new HttpError(400, "invalid_request", "Invalid approval decision.");
-  }
-  return value as unknown as ApprovalDecision;
-}
-
-function parseRequestBody(value: unknown): AgentRequest {
-  if (
-    !objectValue(value) ||
-    !Array.isArray(value.messages) ||
-    !objectValue(value.user)
-  ) {
-    throw new HttpError(
-      400,
-      "invalid_request",
-      "Body must contain messages[] and a user identity object.",
-    );
-  }
-
   return {
-    messages: value.messages.map(parseMessage),
-    user: value.user as UserIdentity,
-    approval: parseApproval(value.approval),
+    messages: body.messages.map(readMessage),
+    user: { name: body.user.name, email: body.user.email },
+    approval: body.approval,
   };
 }
 
-export interface AppDependencies {
-  connectMcp?: (url: string) => Promise<McpSession>;
-  fetch?: typeof fetch;
-  now?: () => Date;
-  env?: NodeJS.ProcessEnv;
-}
+const app = express();
+// The browser resends every tool result, which can pass the 100kb default.
+app.use(express.json({ limit: "1mb" }));
 
-export function createApp(dependencies: AppDependencies = {}) {
-  const app = express();
-  const env = dependencies.env ?? process.env;
-
-  app.disable("x-powered-by");
-  app.use(express.json({ limit: "1mb" }));
-
-  app.get("/health", (_request, response) => {
-    response.json({ ok: true });
+app.post("/chat", async (request, response) => {
+  const apiKey = process.env.LLM_API_KEY?.trim();
+  if (!apiKey) {
+    throw new HttpError(503, "service_not_configured", "Add your key to .env, then restart npm run dev.", {
+      missing: ["LLM_API_KEY"],
+    });
+  }
+  const input = readChatRequest(request.body);
+  const callModel = createProvider({
+    baseUrl: process.env.LLM_BASE_URL?.trim() || "https://generativelanguage.googleapis.com/v1beta/openai",
+    apiKey,
+    model: process.env.LLM_MODEL?.trim() || "gemini-3.1-flash-lite",
   });
 
-  const chatHandler = async (
-    request: Request,
-    response: Response,
-    next: NextFunction,
-  ) => {
-    let mcp: McpSession | undefined;
-    try {
-      const missing = ["LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"].filter(
-        (name) => !env[name]?.trim(),
-      );
-      if (missing.length) {
-        throw new HttpError(
-          503,
-          "service_not_configured",
-          "Required LLM configuration is missing.",
-          { missing },
-        );
-      }
-
-      const input = parseRequestBody(request.body);
-      const connect = dependencies.connectMcp ?? connectMcp;
-      mcp = await connect(env.MCP_URL?.trim() || DEFAULT_MCP_URL);
-      const callModel = createProvider(
-        {
-          baseUrl: env.LLM_BASE_URL!,
-          apiKey: env.LLM_API_KEY!,
-          model: env.LLM_MODEL!,
-        },
-        dependencies.fetch,
-      );
-
-      const result = await runAgent(input, {
-        listTools: () => mcp!.listTools(),
-        callTool: (name, args) => mcp!.callTool(name, args),
+  const mcp = await connectMcp("http://127.0.0.1:3002/mcp");
+  try {
+    response.json(
+      await runAgent(input, {
+        listTools: async () => (await mcp.listTools()).tools as Tool[],
+        callTool: (name, args) => mcp.callTool({ name, arguments: args }),
         callModel,
-        now: dependencies.now,
-      });
-      response.json(result);
-    } catch (error) {
-      next(error);
-    } finally {
-      if (mcp) {
-        try {
-          await mcp.close();
-        } catch {
-          // The response should not fail because connection cleanup failed.
-        }
-      }
-    }
-  };
+      }),
+    );
+  } finally {
+    await mcp.close().catch(() => {});
+  }
+});
 
-  app.post("/api/chat", chatHandler);
-  app.post("/chat", chatHandler);
-
-  app.use(
-    (
-      error: unknown,
-      _request: Request,
-      response: Response,
-      _next: NextFunction,
-    ) => {
-      if (error instanceof HttpError) {
-        response.status(error.status).json({
-          error: {
-            code: error.code,
-            message: error.message,
-            ...(error.details === undefined
-              ? {}
-              : { details: error.details }),
-          },
-        });
-        return;
-      }
-
-      if (error instanceof AgentInputError) {
-        response.status(400).json({
-          error: {
-            code: "invalid_approval",
-            message: error.message,
-          },
-        });
-        return;
-      }
-
-      if (
-        error instanceof SyntaxError &&
-        "status" in error &&
-        error.status === 400
-      ) {
-        response.status(400).json({
-          error: {
-            code: "invalid_json",
-            message: "Request body is not valid JSON.",
-          },
-        });
-        return;
-      }
-
-      response.status(500).json({
-        error: {
-          code: "internal_error",
-          message:
-            error instanceof Error ? error.message : "Unexpected server error.",
-        },
-      });
+app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
+  if (error instanceof HttpError) {
+    response.status(error.status).json({
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(error.details === undefined ? {} : { details: error.details }),
+      },
+    });
+    return;
+  }
+  // A bug, not bad input: print it so it shows up in the npm run dev output.
+  console.error(error);
+  response.status(500).json({
+    error: {
+      code: "internal_error",
+      message: error instanceof Error ? error.message : "Unexpected server error.",
     },
-  );
-
-  return app;
-}
-
-const isMain =
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
-
-if (isMain) {
-  createApp().listen(3003, "127.0.0.1", (error) => {
-    if (error) {
-      console.error(
-        `Could not start the chat service on port 3003: ${error.message}. Another program may be using the port; run "npm run doctor" to check.`,
-      );
-      process.exit(1);
-    }
-    console.log("Chat service listening on http://127.0.0.1:3003");
   });
-}
+});
+
+app.listen(3003, "127.0.0.1", (error) => {
+  if (error) {
+    console.error(
+      `Could not start the chat service on port 3003: ${error.message}. Another program may be using the port; run "npm run doctor" to check.`,
+    );
+    process.exit(1);
+  }
+  console.log("Chat service listening on http://127.0.0.1:3003");
+});

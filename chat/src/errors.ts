@@ -9,10 +9,3 @@ export class HttpError extends Error {
     this.name = "HttpError";
   }
 }
-
-export class AgentInputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AgentInputError";
-  }
-}

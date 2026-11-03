@@ -47,7 +47,7 @@ describe("request", () => {
       {
         error: {
           code: "NOT_IMPLEMENTED",
-          message: "Implement event listing in Part 1",
+          message: "Finish TODO(part-1.1)",
           details: { sourcePath: "api/src/app.ts" },
         },
       },
@@ -55,7 +55,17 @@ describe("request", () => {
     );
 
     await expect(request("/api/v1/events?q=ai", {}, fetcher)).rejects.toThrow(
-      "Not implemented yet: GET /api/v1/events — Implement event listing in Part 1 (api/src/app.ts)",
+      "Not implemented yet: GET /api/v1/events — Finish TODO(part-1.1) (api/src/app.ts)",
+    );
+  });
+
+  it("names the server that isn't answering when Vite's proxy replies 502", async () => {
+    const down = () => vi.fn().mockResolvedValue(new Response("", { status: 502 }));
+    await expect(request("/api/v1/events", {}, down())).rejects.toThrow(
+      "The API (port 3001) isn't answering",
+    );
+    await expect(request("/chat", {}, down())).rejects.toThrow(
+      "The chat host (port 3003) isn't answering",
     );
   });
 });

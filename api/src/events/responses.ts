@@ -14,8 +14,8 @@ export function toEvent(event: EventRow) {
     location: event.location,
     meetingUrl: event.meeting_url,
     capacity: event.capacity,
-    rsvpCount: Number(event.rsvp_count),
-    availableSpots: Math.max(0, event.capacity - Number(event.rsvp_count)),
+    rsvpCount: event.rsvp_count,
+    availableSpots: Math.max(0, event.capacity - event.rsvp_count),
     createdAt: event.created_at,
     updatedAt: event.updated_at,
     // Only included when the request asked about one person with ?email=...
