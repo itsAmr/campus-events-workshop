@@ -9,7 +9,7 @@ The moment a client reads your JSON, every field name, type, and format becomes 
 
 **Hyrum's law:** with enough users, every behavior they can observe will be depended on by somebody, whether you promised it or not.
 
-A real example from this repo: nobody documented the timestamp format, but the web app relies on it. That's why Part 0 asked you to copy the `created_at` line. A database default of `CURRENT_TIMESTAMP` gives `2026-11-06 17:00:00`, with no `Z` to say it's UTC. Most browsers read a timestamp like that as local time, so in Montreal the web app would show it 5 hours off. No error, no failed test: just wrong times.
+An example from this repo: nobody documented the timestamp format, but clients rely on it. That's why Part 0 asked you to copy the `created_at` line. A database default of `CURRENT_TIMESTAMP` gives `2026-11-06 17:00:00`, with no `Z` to say it's UTC. Most browsers read a timestamp like that as local time, so a client in Montreal would show it 5 hours off. No error, no failed test: just wrong times.
 
 ## Discuss: breaking or not?
 
@@ -53,9 +53,9 @@ Now try change 3 from the vote. Follow `TODO(part-2.2)` in the same file and cha
 location: { name: event.location },
 ```
 
-Look at the web app: it crashes, because it tries to show the `location` object as text. Run `npm run check:2`: the test "keeps every field clients already rely on" fails too. A test like that guards the promise, so a breaking change gets caught before clients see it.
+Look at the web app: it crashes, because it tries to show the `location` object as text (the browser console has the error). Run `npm run check:2`: the test "keeps every field clients already rely on" fails too. A test like that guards the promise, so a breaking change gets caught before clients see it.
 
-**Undo the change** before moving on.
+**Undo the change** and reload the page before moving on.
 
 ## Requests can break too
 

@@ -97,34 +97,35 @@ export function createEvent(db: CampusDatabase, input: NewEvent): EventRow {
   return getEvent(db, Number(result.lastInsertRowid));
 }
 
-const columns: Record<keyof EventChanges, string> = {
-  title: "title",
-  description: "description",
-  category: "category",
-  startsAt: "starts_at",
-  endsAt: "ends_at",
-  location: "location",
-  capacity: "capacity",
-  meetingUrl: "meeting_url",
-};
-
+// Fields left out of the request keep their current value.
 export function updateEvent(db: CampusDatabase, id: number, changes: EventChanges): EventRow {
   const current = getEvent(db, id);
-  if ((changes.endsAt ?? current.ends_at) <= (changes.startsAt ?? current.starts_at)) {
+  const startsAt = changes.startsAt ?? current.starts_at;
+  const endsAt = changes.endsAt ?? current.ends_at;
+  if (endsAt <= startsAt) {
     throw new FieldError("endsAt", "Must be after startsAt");
   }
   if (changes.capacity !== undefined && changes.capacity < current.rsvp_count) {
     throw new FieldError("capacity", "Cannot be below the current RSVP count");
   }
 
-  const entries = Object.entries(changes) as Array<[keyof EventChanges, unknown]>;
-  const assignments = entries.map(([field]) => `${columns[field]} = ?`);
-  const values = entries.map(([, value]) => (value ?? null) as string | number | null);
   db.prepare(
     `UPDATE events
-     SET ${assignments.join(", ")}, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+     SET title = ?, description = ?, category = ?, starts_at = ?, ends_at = ?,
+         location = ?, capacity = ?, meeting_url = ?,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
      WHERE id = ?`,
-  ).run(...values, id);
+  ).run(
+    changes.title ?? current.title,
+    changes.description ?? current.description,
+    changes.category ?? current.category,
+    startsAt,
+    endsAt,
+    changes.location ?? current.location,
+    changes.capacity ?? current.capacity,
+    changes.meetingUrl === undefined ? current.meeting_url : changes.meetingUrl,
+    id,
+  );
   return getEvent(db, id);
 }
 
@@ -133,7 +134,7 @@ export function deleteEvent(db: CampusDatabase, id: number): void {
   if (Number(changes) === 0) throw new NotFoundError();
 }
 
-export function hasRsvp(db: CampusDatabase, eventId: number, email: string): boolean {
+function hasRsvp(db: CampusDatabase, eventId: number, email: string): boolean {
   return (
     db
       .prepare("SELECT 1 FROM rsvps WHERE event_id = ? AND email = ? COLLATE NOCASE")
@@ -141,29 +142,20 @@ export function hasRsvp(db: CampusDatabase, eventId: number, email: string): boo
   );
 }
 
-// The checks give friendly errors; the UNIQUE and FOREIGN KEY rules from Part 0
-// still guarantee correctness if two requests race. The transaction makes the
-// capacity check and the insert happen as one step.
+// These checks give friendly errors. The UNIQUE and FOREIGN KEY rules from
+// Part 0 still protect the data from anything that skips this code, like
+// npm run db:shell.
 export function rsvp(db: CampusDatabase, eventId: number, email: string): RsvpRow {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const event = getEvent(db, eventId);
-    if (hasRsvp(db, eventId, email)) {
-      throw new ConflictError("ALREADY_RSVPED", "This email has already RSVP'd");
-    }
-    if (event.rsvp_count >= event.capacity) {
-      throw new ConflictError("EVENT_FULL", "This event is at capacity");
-    }
-    const result = db.prepare("INSERT INTO rsvps (event_id, email) VALUES (?, ?)").run(eventId, email);
-    const created = db
-      .prepare("SELECT * FROM rsvps WHERE id = ?")
-      .get(Number(result.lastInsertRowid)) as RsvpRow;
-    db.exec("COMMIT");
-    return created;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+  const event = getEvent(db, eventId);
+  if (hasRsvp(db, eventId, email)) {
+    throw new ConflictError("ALREADY_RSVPED", "This email has already RSVP'd");
   }
+  if (event.rsvp_count >= event.capacity) {
+    throw new ConflictError("EVENT_FULL", "This event is at capacity");
+  }
+  return db
+    .prepare("INSERT INTO rsvps (event_id, email) VALUES (?, ?) RETURNING *")
+    .get(eventId, email) as RsvpRow;
 }
 
 export function cancelRsvp(db: CampusDatabase, eventId: number, email: string): void {

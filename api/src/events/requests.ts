@@ -13,13 +13,9 @@ const text = (maxLength: number) => z.string().trim().min(1).max(maxLength);
 // ("2026-11-06T18:00:00.000Z") so the database can compare times as text.
 const time = z.iso.datetime({ offset: true }).transform((value) => new Date(value).toISOString());
 
-const email = z
-  .string()
-  .trim()
-  .email()
-  .transform((value) => value.toLowerCase());
+const email = z.string().trim().toLowerCase().pipe(z.email());
 
-// GET /events?q=robotics&category=Technology&from=...&to=...&email=...
+// GET /api/v1/events?q=robotics&category=Technology&from=...&to=...&email=...
 const eventFilters = z.object({
   q: text(100).optional(),
   category: text(60).optional(),

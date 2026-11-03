@@ -35,7 +35,7 @@ Open `api/migrations/001_init.sql` and find `TODO(part-0.1)`. The rest of the ap
 
 How you enforce these rules is up to you:
 
-1. Every RSVP belongs to an event that exists.
+1. Every RSVP belongs to an event, and that event exists. (A `FOREIGN KEY` alone still allows an empty `event_id`.)
 2. One RSVP per email per event. The same email can RSVP to many different events.
 3. Deleting an event deletes its RSVPs.
 4. An RSVP always has an email.

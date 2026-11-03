@@ -4,9 +4,8 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 const dbDirectory = dirname(fileURLToPath(import.meta.url));
-export const migrationsDirectory = resolve(dbDirectory, "../../migrations");
-export const defaultDatabasePath =
-  process.env.DATABASE_PATH ?? resolve(dbDirectory, "../../data/campus-events.db");
+const migrationsDirectory = resolve(dbDirectory, "../../migrations");
+export const defaultDatabasePath = resolve(dbDirectory, "../../data/campus-events.db");
 
 export type CampusDatabase = DatabaseSync;
 
@@ -21,10 +20,7 @@ export function openDatabase(filename = defaultDatabasePath): CampusDatabase {
   return db;
 }
 
-export function runMigrations(
-  db: CampusDatabase,
-  directory = migrationsDirectory,
-): void {
+export function runMigrations(db: CampusDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       name TEXT PRIMARY KEY,
@@ -36,7 +32,7 @@ export function runMigrations(
     name: string;
   }>;
   const appliedNames = new Set(applied.map(({ name }) => name));
-  const migrationFiles = readdirSync(directory)
+  const migrationFiles = readdirSync(migrationsDirectory)
     .filter((name) => /^\d+.*\.sql$/.test(name))
     .sort();
   const recordMigration = db.prepare(
@@ -46,7 +42,7 @@ export function runMigrations(
   for (const name of migrationFiles) {
     if (appliedNames.has(name)) continue;
 
-    const sql = readFileSync(join(directory, name), "utf8");
+    const sql = readFileSync(join(migrationsDirectory, name), "utf8");
     db.exec("BEGIN IMMEDIATE");
     try {
       db.exec(sql);

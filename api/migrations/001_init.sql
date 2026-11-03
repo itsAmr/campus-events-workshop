@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS events (
 
 -- TODO(part-0.1): design the rsvps table.
 --   Columns: id, event_id, email, created_at. The database should guarantee:
---     1. every RSVP belongs to an event that exists;
+--     1. every RSVP belongs to an event, and that event exists;
 --     2. an email RSVPs to the same event at most once;
 --     3. deleting an event deletes its RSVPs; and
 --     4. every RSVP has an email.
@@ -22,4 +22,3 @@ CREATE TABLE IF NOT EXISTS events (
 --   Check: npm run check:0, then npm run db:reset
 
 CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
-CREATE INDEX IF NOT EXISTS idx_events_category ON events(category);
