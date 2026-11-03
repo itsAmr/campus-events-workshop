@@ -15,12 +15,10 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE TABLE IF NOT EXISTS rsvps (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   event_id INTEGER NOT NULL,
-  email TEXT NOT NULL COLLATE NOCASE CHECK (length(trim(email)) > 3),
+  email TEXT NOT NULL COLLATE NOCASE,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
   UNIQUE (event_id, email)
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
-CREATE INDEX IF NOT EXISTS idx_events_category ON events(category);
-CREATE INDEX IF NOT EXISTS idx_rsvps_event_id ON rsvps(event_id);

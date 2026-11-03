@@ -1,44 +1,28 @@
-# Chat service
+# Chat host
 
-TypeScript Express host for an OpenAI-compatible chat-completions provider and
-an MCP v2 Streamable HTTP server.
+The AI host behind the web app's chat panel. It talks to the model (Gemini by
+default) and to the MCP server, and it decides which tool calls actually run.
+The API key stays here, on the server; the browser and the model never see it.
 
-## Run
+It starts with everything else when you run `npm run dev` from the repo root,
+and reads its settings from the root `.env` (see `.env.example`).
 
-Set `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`. `MCP_URL` defaults to
-`http://127.0.0.1:3002/mcp`.
+## What happens to one message
 
-```sh
-npm install
-npm run dev
-```
+1. The browser POSTs the whole conversation to `/chat`. The host keeps nothing
+   between requests.
+2. The host connects to the MCP server, lists its tools, and sends the
+   conversation and the tool list to the model.
+3. If the model asks for a tool, the host checks it:
+   - a tool that isn't on the list is refused;
+   - a tool marked `readOnlyHint: true` runs right away;
+   - any other tool pauses, and the host returns `pendingApproval` for the
+     user to Allow or Deny. The browser sends that exact call back with the
+     decision, and the host refuses an approval that doesn't match.
+4. Tool results go back to the model, and steps 3 and 4 repeat until it answers
+   in words, or for at most 6 rounds.
+5. The host returns `{ messages, tools, pendingApproval }`, and the browser
+   keeps `messages` for the next turn.
 
-The service binds to `127.0.0.1:3003`. POST to `/api/chat` (or `/chat`):
-
-```json
-{
-  "messages": [{ "role": "user", "content": "What events are today?" }],
-  "user": { "id": "u-123", "name": "Ada", "email": "ada@example.com" }
-}
-```
-
-Responses contain the full browser-resubmittable `messages`,
-`assistantMessages`, `toolTrace`, discovered `tools`, and `pendingApproval`.
-When `pendingApproval` is non-null, show it to the user and resubmit the
-returned `messages` with the exact decision:
-
-```json
-{
-  "messages": ["the response messages go here"],
-  "user": { "id": "u-123", "name": "Ada" },
-  "approval": {
-    "callId": "call_123",
-    "name": "create_event",
-    "args": { "title": "Workshop" },
-    "allowed": true
-  }
-}
-```
-
-The API key remains server-side. Tools without an explicit
-`annotations.readOnlyHint: true` require approval.
+`src/agent.ts` has steps 3 and 4, `src/server.ts` has the route, and
+`test/agent.test.ts` checks each rule above.

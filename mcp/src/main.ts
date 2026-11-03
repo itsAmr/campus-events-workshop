@@ -8,11 +8,10 @@ import { createCampusMcpServer } from "./server.js";
 // http://127.0.0.1:3002/mcp.
 const host = "127.0.0.1";
 const port = 3002;
-const apiUrl = process.env.CAMPUS_API_URL ?? "http://127.0.0.1:3001";
 
 const app = createMcpExpressApp({ host });
 const mcpHandler = toNodeHandler(
-  createMcpHandler(() => createCampusMcpServer(apiUrl)),
+  createMcpHandler(() => createCampusMcpServer()),
   { onerror: (error) => console.error("MCP request failed", error) },
 );
 

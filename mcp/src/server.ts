@@ -20,8 +20,8 @@ import { resolveCampusDateRange, withLocalTime } from "./time.js";
 //      runs it without asking. Anything else waits for the user to click Allow.
 //   4. a handler: calls the REST route and replies with the result
 
-export function createCampusMcpServer(apiUrl?: string): McpServer {
-  const api = createCampusApi(apiUrl);
+export function createCampusMcpServer(): McpServer {
+  const api = createCampusApi();
   const server = new McpServer({ name: "campus-events", version: "1.0.0" });
 
   // Worked example: a read-only tool with no arguments.

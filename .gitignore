@@ -15,5 +15,4 @@ api/data/*.db*
 npm-debug.log*
 
 .idea/
-.vscode/*
-!.vscode/extensions.json
+.vscode/
