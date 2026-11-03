@@ -1,209 +1,132 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { runAgent } from "../src/agent.js";
-import type {
-  AgentDependencies,
-  ChatMessage,
-  ProviderResponse,
-} from "../src/types.js";
+import { runAgent, type AgentDependencies } from "../src/agent.js";
+import type { AssistantMessage, ChatMessage, Tool, ToolCall } from "../src/types.js";
 
-const fixedDate = new Date("2026-10-28T16:00:00.000Z");
+const tools: Tool[] = [
+  { name: "lookup", inputSchema: { $schema: "draft", type: "object" }, annotations: { readOnlyHint: true } },
+  { name: "rsvp", inputSchema: { type: "object" } },
+];
 
-function assistant(
-  message: ProviderResponse["message"],
-): Promise<ProviderResponse> {
-  return Promise.resolve({ message });
+function call(id: string, name: string, args: object): ToolCall {
+  return { id, type: "function", function: { name, arguments: JSON.stringify(args) } };
 }
 
+function asks(...calls: ToolCall[]): AssistantMessage {
+  return { role: "assistant", content: null, tool_calls: calls };
+}
+
+function says(content: string): AssistantMessage {
+  return { role: "assistant", content };
+}
+
+function host(replies: AssistantMessage[]) {
+  const callTool = vi.fn<AgentDependencies["callTool"]>().mockResolvedValue({ content: [{ type: "text", text: "ok" }] });
+  const callModel = vi.fn<AgentDependencies["callModel"]>();
+  for (const reply of replies) callModel.mockResolvedValueOnce(reply);
+  callModel.mockResolvedValue(says("done"));
+  return { callTool, callModel, listTools: async () => tools };
+}
+
+const question: ChatMessage[] = [{ role: "user", content: "Help me" }];
+const user = { name: "Ada", email: "ada@mcgill.ca" };
+
 describe("runAgent", () => {
-  it("executes read-only tools and exposes their trace", async () => {
-    const callTool = vi.fn().mockResolvedValue({
-      content: [{ type: "text", text: "Found it" }],
-    });
-    const callModel = vi
-      .fn<AgentDependencies["callModel"]>()
-      .mockImplementationOnce(({ messages }) => {
-        expect(messages[0]).toMatchObject({
-          role: "system",
-          content: expect.stringContaining('"name":"Ada"'),
-        });
-        return assistant({
-          role: "assistant",
-          content: null,
-          tool_calls: [
-            {
-              id: "read-1",
-              type: "function",
-              function: {
-                name: "lookup",
-                arguments: '{"id":"event-7"}',
-              },
-            },
-          ],
-        });
-      })
-      .mockImplementationOnce(() =>
-        assistant({ role: "assistant", content: "The event is tonight." }),
-      );
+  it("runs read-only tools without asking", async () => {
+    const dependencies = host([asks(call("c1", "lookup", { id: 7 })), says("The event is tonight.")]);
 
-    const result = await runAgent(
-      {
-        messages: [{ role: "user", content: "When is the event?" }],
-        user: { id: "u-1", name: "Ada" },
-      },
-      {
-        listTools: async () => [
-          {
-            name: "lookup",
-            inputSchema: { type: "object" },
-            annotations: { readOnlyHint: true },
-          },
-        ],
-        callTool,
-        callModel,
-        now: () => fixedDate,
-      },
-    );
+    const result = await runAgent({ messages: question, user }, dependencies);
 
-    expect(callTool).toHaveBeenCalledWith("lookup", { id: "event-7" });
+    expect(dependencies.callTool).toHaveBeenCalledWith("lookup", { id: 7 });
     expect(result.pendingApproval).toBeNull();
-    expect(result.toolTrace).toEqual([
-      expect.objectContaining({
-        callId: "read-1",
-        name: "lookup",
-        status: "success",
-      }),
+    expect(result.messages.map((m) => m.role)).toEqual(["user", "assistant", "tool", "assistant"]);
+    expect(result.messages.at(-1)).toEqual(says("The event is tonight."));
+    expect(result.tools).toEqual([
+      { name: "lookup", description: "", readOnly: true },
+      { name: "rsvp", description: "", readOnly: false },
     ]);
-    expect(result.assistantMessages.at(-1)?.content).toBe(
-      "The event is tonight.",
-    );
+
+    const [sent, modelTools] = dependencies.callModel.mock.calls[0];
+    expect(sent[0]).toMatchObject({ role: "system", content: expect.stringContaining('"name":"Ada"') });
+    expect(modelTools[0].function.parameters).toEqual({ type: "object" });
   });
 
-  it("pauses before a write and executes only after matching approval", async () => {
-    const firstModel = vi.fn().mockImplementation(() =>
-      assistant({
-        role: "assistant",
-        content: null,
-        tool_calls: [
-          {
-            id: "write-1",
-            type: "function",
-            function: {
-              name: "create_event",
-              arguments: '{"title":"Workshop"}',
-            },
-          },
-        ],
-      }),
-    );
-    const callTool = vi.fn().mockResolvedValue({ content: "created" });
-    const tools = async () => [
-      {
-        name: "create_event",
-        inputSchema: { type: "object" },
-        annotations: { readOnlyHint: false },
-      },
-    ];
+  it("pauses a write until the user approves that exact call", async () => {
+    const first = host([asks(call("w1", "rsvp", { eventId: 7 }))]);
+    const paused = await runAgent({ messages: question, user }, first);
 
-    const pending = await runAgent(
-      {
-        messages: [{ role: "user", content: "Create a workshop." }],
-        user: { id: "u-2" },
-      },
-      {
-        listTools: tools,
-        callTool,
-        callModel: firstModel,
-        now: () => fixedDate,
-      },
+    expect(first.callTool).not.toHaveBeenCalled();
+    expect(paused.pendingApproval).toMatchObject({ callId: "w1", name: "rsvp", args: { eventId: 7 } });
+
+    const second = host([says("You're going.")]);
+    const approved = await runAgent(
+      { messages: paused.messages, user, approval: { callId: "w1", name: "rsvp", args: { eventId: 7 }, allowed: true } },
+      second,
     );
 
-    expect(callTool).not.toHaveBeenCalled();
-    expect(pending.pendingApproval).toEqual({
-      callId: "write-1",
-      name: "create_event",
-      args: { title: "Workshop" },
-      reason: "This tool is not annotated as read-only.",
-    });
-
-    const finalModel = vi.fn().mockImplementation(() =>
-      assistant({ role: "assistant", content: "Created the workshop." }),
-    );
-    const resumed = await runAgent(
-      {
-        messages: pending.messages as ChatMessage[],
-        user: { id: "u-2" },
-        approval: {
-          callId: "write-1",
-          name: "create_event",
-          args: { title: "Workshop" },
-          allowed: true,
-        },
-      },
-      {
-        listTools: tools,
-        callTool,
-        callModel: finalModel,
-        now: () => fixedDate,
-      },
-    );
-
-    expect(callTool).toHaveBeenCalledTimes(1);
-    expect(callTool).toHaveBeenCalledWith("create_event", {
-      title: "Workshop",
-    });
-    expect(resumed.pendingApproval).toBeNull();
-    expect(resumed.toolTrace[0]).toMatchObject({
-      callId: "write-1",
-      status: "success",
-    });
+    expect(second.callTool).toHaveBeenCalledWith("rsvp", { eventId: 7 });
+    expect(approved.messages.at(-1)).toEqual(says("You're going."));
   });
 
-  it("records a denied write without calling MCP", async () => {
-    const callTool = vi.fn();
-    const messages: ChatMessage[] = [
-      { role: "user", content: "Delete it." },
-      {
-        role: "assistant",
-        content: null,
-        tool_calls: [
-          {
-            id: "write-2",
-            type: "function",
-            function: { name: "delete_event", arguments: '{"id":"e-1"}' },
-          },
-        ],
-      },
-    ];
+  it("tells the model when the user denies a write", async () => {
+    const paused = await runAgent({ messages: question, user }, host([asks(call("w1", "rsvp", { eventId: 7 }))]));
+    const dependencies = host([says("Okay, I won't.")]);
 
     const result = await runAgent(
-      {
-        messages,
-        user: { id: "u-3" },
-        approval: {
-          callId: "write-2",
-          name: "delete_event",
-          args: { id: "e-1" },
-          allowed: false,
-        },
-      },
-      {
-        listTools: async () => [
-          {
-            name: "delete_event",
-            annotations: { readOnlyHint: false },
-          },
-        ],
-        callTool,
-        callModel: async () =>
-          assistant({ role: "assistant", content: "I did not delete it." }),
-      },
+      { messages: paused.messages, user, approval: { callId: "w1", name: "rsvp", args: { eventId: 7 }, allowed: false } },
+      dependencies,
     );
 
-    expect(callTool).not.toHaveBeenCalled();
-    expect(result.toolTrace[0]).toMatchObject({
-      callId: "write-2",
-      status: "denied",
-    });
+    expect(dependencies.callTool).not.toHaveBeenCalled();
+    expect(result.messages).toContainEqual(
+      expect.objectContaining({ role: "tool", tool_call_id: "w1", content: "The user denied this tool call." }),
+    );
+  });
+
+  it.each([
+    ["different arguments", { callId: "w1", name: "rsvp", args: { eventId: 8 } }],
+    ["a different tool", { callId: "w1", name: "lookup", args: { eventId: 7 } }],
+    ["a call that isn't waiting", { callId: "nope", name: "rsvp", args: { eventId: 7 } }],
+  ])("refuses an approval for %s", async (_label, approval) => {
+    const paused = await runAgent({ messages: question, user }, host([asks(call("w1", "rsvp", { eventId: 7 }))]));
+    const dependencies = host([]);
+
+    await expect(
+      runAgent({ messages: paused.messages, user, approval: { ...approval, allowed: true } }, dependencies),
+    ).rejects.toMatchObject({ status: 400, code: "invalid_approval" });
+    expect(dependencies.callTool).not.toHaveBeenCalled();
+  });
+
+  it("refuses tools the MCP server doesn't list", async () => {
+    const dependencies = host([asks(call("x1", "delete_everything", {}))]);
+
+    const result = await runAgent({ messages: question, user }, dependencies);
+
+    expect(dependencies.callTool).not.toHaveBeenCalled();
+    expect(result.messages).toContainEqual(
+      expect.objectContaining({ role: "tool", tool_call_id: "x1", content: "Unknown tool: delete_everything" }),
+    );
+  });
+
+  it("stops after six rounds of tool calls", async () => {
+    const dependencies = host([]);
+    dependencies.callModel.mockReset();
+    let round = 0;
+    dependencies.callModel.mockImplementation(async () => asks(call(`r${(round += 1)}`, "lookup", {})));
+
+    const result = await runAgent({ messages: question, user }, dependencies);
+
+    expect(dependencies.callModel).toHaveBeenCalledTimes(6);
+    expect(result.messages.at(-1)).toEqual(says(expect.stringContaining("I stopped after 6 rounds")));
+  });
+
+  it("sends tool calls back to the model with every field it added", async () => {
+    const signed = { ...call("c1", "lookup", {}), extra_content: { google: { thought_signature: "abc" } } };
+    const dependencies = host([asks(signed)]);
+
+    await runAgent({ messages: question, user }, dependencies);
+
+    const [sent] = dependencies.callModel.mock.calls[1];
+    expect(sent).toContainEqual(asks(signed));
   });
 });

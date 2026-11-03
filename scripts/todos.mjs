@@ -1,8 +1,9 @@
 // Lists every TODO(part-N.M) left in the workshop code, in workshop order.
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const root = fileURLToPath(new URL("..", import.meta.url));
 const folders = ["api/src", "api/migrations", "mcp/src"];
 const pattern = /TODO\(part-(\d+)\.(\d+)\):\s*(.*)/;
 

@@ -1,4 +1,4 @@
-// The web app is a client of the public v1 contract. Vite proxies /api to the
+// The web app is just another client of your REST API. Vite proxies /api to the
 // REST API (port 3001) and /chat to the chat host (port 3003).
 export const API_BASE = "/api/v1";
 
@@ -63,6 +63,11 @@ export async function request<T>(
 
   if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => undefined);
+  // Vite answers 502 with an empty body when the server behind it is down.
+  if (response.status === 502 && body === undefined) {
+    const server = path.startsWith("/chat") ? "chat host (port 3003)" : "API (port 3001)";
+    throw new ApiError(`The ${server} isn't answering. Look for its error in the npm run dev output.`, 502);
+  }
   if (response.ok) {
     return (body && typeof body === "object" && "data" in body ? body.data : body) as T;
   }
@@ -115,7 +120,8 @@ export const cancelRsvp = (eventId: number, email: string) =>
   });
 
 // Chat host contract (chat/src/types.ts). The browser keeps the conversation
-// and sends it back on every turn; the host never trusts it for approvals.
+// and sends it back on every turn, because the host remembers nothing between
+// requests. A write still only runs after the user approves that exact call.
 export type ToolCall = {
   id: string;
   type: "function";
