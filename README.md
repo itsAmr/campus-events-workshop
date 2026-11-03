@@ -97,5 +97,3 @@ The branches are `main` (start), `checkpoint/0-database`, `checkpoint/1-rest`, `
 - **No upcoming events, or the chat finds nothing "this week":** sample event dates are counted from when your database was created. Run `npm run db:reset` for fresh ones.
 - **Windows:** use PowerShell or Git Bash, and keep the project out of a OneDrive folder.
 - **Never** run `sudo npm install`. Run `npm install` from the project root, not inside a folder like `api/`.
-
-Facilitators: see the [facilitator guide](docs/facilitator-guide.md).
