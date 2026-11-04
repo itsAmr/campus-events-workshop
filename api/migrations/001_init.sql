@@ -20,5 +20,3 @@ CREATE TABLE IF NOT EXISTS events (
 --     4. every RSVP has an email.
 --   Copy the created_at line from the events table above.
 --   Check: npm run check:0, then npm run db:reset
-
-CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
