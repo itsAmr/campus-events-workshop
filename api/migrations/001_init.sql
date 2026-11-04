@@ -20,5 +20,3 @@ CREATE TABLE IF NOT EXISTS rsvps (
   FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
   UNIQUE (event_id, email)
 );
-
-CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events(starts_at);
